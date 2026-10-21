@@ -51,18 +51,32 @@ jobs:
       - name: Verify extension and package unsigned IPA
         run: |
           python3 scripts/verify_ios_bundle.py build/ios/iphoneos/Runner.app
-          mkdir -p build/unsigned/Payload
+          rm -rf build/unsigned build/artifacts build/ipa-check
+          mkdir -p build/unsigned/Payload build/artifacts
           cp -R build/ios/iphoneos/Runner.app build/unsigned/Payload/
-          cp docs/IOS-SIGNING.md build/unsigned/
-          cd build/unsigned
-          /usr/bin/zip -qry ../YIClass-unsigned.ipa Payload
-          rm -rf Payload
+          (cd build/unsigned && /usr/bin/zip -qry ../artifacts/YIClass-unsigned.ipa Payload)
+          /usr/bin/unzip -tq build/artifacts/YIClass-unsigned.ipa
+          /usr/bin/unzip -q build/artifacts/YIClass-unsigned.ipa -d build/ipa-check
+          python3 scripts/verify_ios_bundle.py build/ipa-check/Payload/Runner.app
+          cp docs/IOS-SIGNING.md build/artifacts/
+          (cd build/artifacts && shasum -a 256 YIClass-unsigned.ipa > SHA256SUMS.txt)
+          rm -rf build/unsigned build/ipa-check
+      - name: Explain artifact download
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ## iOS 下载与校验
+          下载 **YIClass-iOS-unsigned-with-widget** 产物后，先解压 GitHub 提供的 ZIP。
+          解压后根目录的 **YIClass-unsigned.ipa** 才是待签名安装包；不要把外层 ZIP 改名为 IPA。
+          IPA 已通过 ZIP 完整性检查和解压后的小组件校验。
+          可用同目录的 SHA256SUMS.txt 校验下载文件：`shasum -a 256 -c SHA256SUMS.txt`。
+          签名要求见同目录 IOS-SIGNING.md。
+          EOF
       - uses: actions/upload-artifact@v4
         with:
           name: YIClass-iOS-unsigned-with-widget
-          path: |
-            build/YIClass-unsigned.ipa
-            docs/IOS-SIGNING.md
+          path: build/artifacts/
+          if-no-files-found: error
+          compression-level: 0
           retention-days: 14
       - uses: actions/upload-artifact@v4
         if: always()

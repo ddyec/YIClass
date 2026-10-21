@@ -7,6 +7,13 @@
 Actions 输出 `YIClass-unsigned.ipa`，其中包含 `Payload/Runner.app/PlugIns/ScheduleWidget.appex`。
 这是未签名包，需要自行签名后安装。最低 iOS 15。
 
+## 下载产物
+
+1. 在成功的 Actions 页面下载 `YIClass-iOS-unsigned-with-widget` 产物。
+2. GitHub 下载的是外层 `.zip`，请先解压。根目录中的 `YIClass-unsigned.ipa` 才是需要导入签名工具的文件；不要把外层 ZIP 直接改名为 IPA。
+3. 同目录包含 `SHA256SUMS.txt`。macOS 可运行 `shasum -a 256 -c SHA256SUMS.txt` 校验；Windows PowerShell 可运行 `Get-FileHash .\YIClass-unsigned.ipa -Algorithm SHA256` 并与文件中的值对照。
+4. 如果外层 ZIP 无法解压，请重新下载并确认下载已完成。IPA 本身也是 ZIP 格式，Actions 会在上传前检查完整性，并解压验证嵌入的小组件。
+
 ## 签名的必要条件
 
 1. 为主应用和扩展分别使用匹配的 provisioning profile。
