@@ -16,6 +16,7 @@ import '../../services/timetable/query_service.dart';
 import '../../states/timetable_state.dart';
 import '../../states/week_state.dart';
 import '../../utils/get_weekday.dart';
+import '../../components/layout/timed_events.dart';
 
 /// 显示当前周的课程表，支持左右滑动切换周次。
 class WeekView extends StatefulWidget {
@@ -25,13 +26,14 @@ class WeekView extends StatefulWidget {
   State<WeekView> createState() => _WeekViewState();
 }
 
-class _WeekViewState extends State<WeekView> with AutomaticKeepAliveClientMixin {
+class _WeekViewState extends State<WeekView>
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
-  PageController? _pageController;  // 周次滑动翻页控制器
-  bool _isPageAnimating = false;    // 防止动画重复触发
-  bool _initialWeekSynced = false;  // 仅首次进入时同步当前周
+  PageController? _pageController; // 周次滑动翻页控制器
+  bool _isPageAnimating = false; // 防止动画重复触发
+  bool _initialWeekSynced = false; // 仅首次进入时同步当前周
 
   @override
   void didChangeDependencies() {
@@ -42,10 +44,13 @@ class _WeekViewState extends State<WeekView> with AutomaticKeepAliveClientMixin 
 
     // 首次进入，根据学期开始日计算当前周，避免默认回到第1周
     if (!_initialWeekSynced && timetable != null) {
-      final info = getWeekInfo(DateTime.now(), timetable.settings.startDate, timetable.settings.totalWeeks);
-      targetWeek = (info?['weekIndex'] ?? targetWeek).clamp(1, timetable.settings.totalWeeks);
+      final info = getWeekInfo(DateTime.now(), timetable.settings.startDate,
+          timetable.settings.totalWeeks);
+      targetWeek = (info?['weekIndex'] ?? targetWeek)
+          .clamp(1, timetable.settings.totalWeeks);
       if (targetWeek != weekState.week) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => weekState.setWeek(targetWeek));
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => weekState.setWeek(targetWeek));
       }
       _initialWeekSynced = true;
     }
@@ -60,7 +65,8 @@ class _WeekViewState extends State<WeekView> with AutomaticKeepAliveClientMixin 
   }
 
   /// 显示课程编辑对话框
-  Future<void> _showCourseEditDialog(Course? course, int weekday, int period, int week) async {
+  Future<void> _showCourseEditDialog(
+      Course? course, int weekday, int period, int week) async {
     final timetable = context.read<TimetableState>().current;
     if (timetable == null) return;
 
@@ -70,15 +76,23 @@ class _WeekViewState extends State<WeekView> with AutomaticKeepAliveClientMixin 
       // 空课程：创建新课程
       courseToEdit = FactoryService.createCourse(
         name: '',
-        schedules: [FactoryService.createSchedule(weekday: weekday, periods: [period], weekPattern: [week])],
+        schedules: [
+          FactoryService.createSchedule(
+              weekday: weekday, periods: [period], weekPattern: [week])
+        ],
       );
     } else {
       // 非空课程：检查冲突
-      final coursesAtTime = QueryService.periodCourses(timetable, week, weekday, period);
+      final coursesAtTime =
+          QueryService.periodCourses(timetable, week, weekday, period);
       if (coursesAtTime.length > 1) {
         final selectedIndex = await YicoreCourseSelector.show(
           context,
-          courses: coursesAtTime.asMap().entries.map((e) => CourseItem(id: e.key.toString(), name: e.value.name)).toList(),
+          courses: coursesAtTime
+              .asMap()
+              .entries
+              .map((e) => CourseItem(id: e.key.toString(), name: e.value.name))
+              .toList(),
           currentCourseId: coursesAtTime.indexOf(course).toString(),
           title: '选择要编辑的课程',
         );
@@ -109,7 +123,9 @@ class _WeekViewState extends State<WeekView> with AutomaticKeepAliveClientMixin 
 
   /// 同步 WeekState 到 PageController
   void _syncPageController(WeekState weekState) {
-    if (_pageController == null || !_pageController!.hasClients || _isPageAnimating) return;
+    if (_pageController == null ||
+        !_pageController!.hasClients ||
+        _isPageAnimating) return;
     if (_pageController!.page?.round() != weekState.week - 1) {
       _pageController!.animateToPage(
         weekState.week - 1,
@@ -131,10 +147,13 @@ class _WeekViewState extends State<WeekView> with AutomaticKeepAliveClientMixin 
     final totalWeeks = timetable.settings.totalWeeks;
     final showWeekend = timetable.settings.showWeekend;
     final classTimes = timetable.settings.classTimes;
-    final maxPeriods = timetable.settings.maxPeriods > 0 ? timetable.settings.maxPeriods : DataConstants.defaultMaxPeriods;
+    final maxPeriods = timetable.settings.maxPeriods > 0
+        ? timetable.settings.maxPeriods
+        : DataConstants.defaultMaxPeriods;
 
     // AppBar 箭头点击时同步 PageController
-    WidgetsBinding.instance.addPostFrameCallback((_) => _syncPageController(weekState));
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _syncPageController(weekState));
 
     return PageView.builder(
       controller: _pageController,
@@ -151,7 +170,8 @@ class _WeekViewState extends State<WeekView> with AutomaticKeepAliveClientMixin 
           showWeekend: showWeekend,
           maxPeriods: maxPeriods,
           classTimes: classTimes,
-          onCourseEdit: (course, weekday, period) => _showCourseEditDialog(course, weekday, period, week),
+          onCourseEdit: (course, weekday, period) =>
+              _showCourseEditDialog(course, weekday, period, week),
           onTimeSettingsTap: _handleTimeSettingsTap,
         );
       },
@@ -190,8 +210,19 @@ class WeekViewUI extends StatelessWidget {
       children: [
         Column(
           children: [
-            WeekHeader(showWeekend: showWeekend, currentWeek: currentWeek, startDate: timetable.settings.startDate),
-            Expanded(child: Container(color: Colors.white, child: _buildCourseGrid())),
+            WeekHeader(
+                showWeekend: showWeekend,
+                currentWeek: currentWeek,
+                startDate: timetable.settings.startDate),
+            TimedEvents(
+                timetable: timetable,
+                start: timetable.settings.startDate
+                    .add(Duration(days: (currentWeek - 1) * 7)),
+                end: timetable.settings.startDate
+                    .add(Duration(days: currentWeek * 7))),
+            Expanded(
+                child:
+                    Container(color: Colors.white, child: _buildCourseGrid())),
           ],
         ),
         const AddCourseFab(viewIdentifier: 'week'),
@@ -203,7 +234,9 @@ class WeekViewUI extends StatelessWidget {
     return LayoutBuilder(builder: (context, constraints) {
       final preferredCellHeight = (constraints.maxWidth / 8).clamp(80.0, 120.0);
       final totalHeight = preferredCellHeight * maxPeriods;
-      final cellHeight = totalHeight < constraints.maxHeight ? constraints.maxHeight / maxPeriods : preferredCellHeight;
+      final cellHeight = totalHeight < constraints.maxHeight
+          ? constraints.maxHeight / maxPeriods
+          : preferredCellHeight;
       final cellWidth = (constraints.maxWidth - _periodLabelWidth) / _columns;
 
       return SingleChildScrollView(
@@ -228,9 +261,15 @@ class WeekViewUI extends StatelessWidget {
         return Container(
           height: cellHeight,
           decoration: BoxDecoration(
-            border: Border(bottom: i < maxPeriods - 1 ? BorderSide(color: Colors.grey[200]!) : BorderSide.none),
+            border: Border(
+                bottom: i < maxPeriods - 1
+                    ? BorderSide(color: Colors.grey[200]!)
+                    : BorderSide.none),
           ),
-          child: Row(children: [_buildPeriodLabel(i + 1, cellHeight), const Expanded(child: SizedBox())]),
+          child: Row(children: [
+            _buildPeriodLabel(i + 1, cellHeight),
+            const Expanded(child: SizedBox())
+          ]),
         );
       }),
     );
@@ -243,7 +282,9 @@ class WeekViewUI extends StatelessWidget {
       right: 0,
       top: 0,
       bottom: 0,
-      child: CustomPaint(painter: _VerticalGridPainter(columns: _columns, color: Colors.grey[200]!)),
+      child: CustomPaint(
+          painter: _VerticalGridPainter(
+              columns: _columns, color: Colors.grey[200]!)),
     );
   }
 
@@ -257,16 +298,19 @@ class WeekViewUI extends StatelessWidget {
       child: Stack(
         children: [
           for (int p = 0; p < maxPeriods; p++)
-            for (int d = 0; d < _columns; d++) _buildCell(d, p, cellWidth, cellHeight),
+            for (int d = 0; d < _columns; d++)
+              _buildCell(d, p, cellWidth, cellHeight),
         ],
       ),
     );
   }
 
-  Widget _buildCell(int dayIndex, int periodIndex, double cellWidth, double cellHeight) {
+  Widget _buildCell(
+      int dayIndex, int periodIndex, double cellWidth, double cellHeight) {
     final weekday = dayIndex + 1;
     final period = periodIndex + 1;
-    final course = QueryService.periodCourse(timetable, currentWeek, weekday, period);
+    final course =
+        QueryService.periodCourse(timetable, currentWeek, weekday, period);
 
     // 空白格
     if (course == null) {
@@ -277,17 +321,26 @@ class WeekViewUI extends StatelessWidget {
         height: cellHeight,
         child: Material(
           color: Colors.transparent,
-          child: InkWell(onTap: () => onCourseEdit(null, weekday, period), splashColor: Colors.transparent),
+          child: InkWell(
+              onTap: () => onCourseEdit(null, weekday, period),
+              splashColor: Colors.transparent),
         ),
       );
     }
 
     // 连续课程只渲染第一节
-    final isFirst = period == 1 || QueryService.periodCourse(timetable, currentWeek, weekday, period - 1) != course;
+    final isFirst = period == 1 ||
+        QueryService.periodCourse(
+                timetable, currentWeek, weekday, period - 1) !=
+            course;
     if (!isFirst) return const SizedBox.shrink();
 
-    final span = QueryService.consecutivePeriods(timetable, currentWeek, weekday, period);
-    final hasConflict = QueryService.periodCourses(timetable, currentWeek, weekday, period).length > 1;
+    final span = QueryService.consecutivePeriods(
+        timetable, currentWeek, weekday, period);
+    final hasConflict =
+        QueryService.periodCourses(timetable, currentWeek, weekday, period)
+                .length >
+            1;
 
     return Positioned(
       left: dayIndex * cellWidth,
@@ -308,10 +361,20 @@ class WeekViewUI extends StatelessWidget {
       (c) => c.period == period,
       orElse: () => ClassTime()
         ..period = period
-        ..startTime = DataConstants.defaultPeriodTimes[period.toString()]?.split('-').first ?? '00:00'
-        ..endTime = DataConstants.defaultPeriodTimes[period.toString()]?.split('-').last ?? '00:00',
+        ..startTime = DataConstants.defaultPeriodTimes[period.toString()]
+                ?.split('-')
+                .first ??
+            '00:00'
+        ..endTime = DataConstants.defaultPeriodTimes[period.toString()]
+                ?.split('-')
+                .last ??
+            '00:00',
     );
-    return PeriodLabel(period: period, timeText: '${ct.startTime}-${ct.endTime}', onTap: onTimeSettingsTap, height: cellHeight);
+    return PeriodLabel(
+        period: period,
+        timeText: '${ct.startTime}-${ct.endTime}',
+        onTap: onTimeSettingsTap,
+        height: cellHeight);
   }
 }
 
@@ -333,5 +396,6 @@ class _VerticalGridPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _VerticalGridPainter old) => old.columns != columns || old.color != color;
+  bool shouldRepaint(covariant _VerticalGridPainter old) =>
+      old.columns != columns || old.color != color;
 }

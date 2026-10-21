@@ -10,8 +10,8 @@ class AIService {
     if (!config.enabled) {
       throw Exception('AI功能未启用，请先在设置中配置');
     }
-    if (!config.isVisionValid || Uri.parse(config.endpoint).host == 'api.deepseek.com') {
-      throw const FormatException('图片识别需要支持视觉的模型；DeepSeek 请使用文字或 PDF 导入');
+    if (!config.isVisionValid) {
+      throw const FormatException('请配置视觉模型');
     }
 
     final prompt = _getImagePrompt();
@@ -38,6 +38,47 @@ class AIService {
 
     final prompt = _getTextPrompt(text);
     return await _callTextAPI(config, prompt);
+  }
+
+  /// The weekday comes from PDF geometry, never from model reading order.
+  static Future<Map<String, dynamic>> analyzePdf(String text,
+      {AIConfig? configuration}) async {
+    text = text.replaceAll('\r\n', '\n');
+    final config = configuration ?? await AIConfigService.getConfig();
+    if (!config.enabled || !config.isTextValid) {
+      throw const FormatException('请先配置 AI 接口');
+    }
+    final pattern = RegExp(
+        r'\[YICLASS_COLUMN weekday=([1-7])\]\n([\s\S]*?)\n\[/YICLASS_COLUMN\]');
+    final columns = pattern.allMatches(text).toList();
+    if (columns.isEmpty) {
+      if (RegExp(r'星期[一二三四五六日]').allMatches(text).length >= 4) {
+        throw const FormatException('无法可靠分隔 PDF 星期列，请改用清晰图片或按星期粘贴文字');
+      }
+      return _callTextAPI(config, _getTextPrompt(text));
+    }
+    final courses = <dynamic>[];
+    for (final column in columns) {
+      final content = column.group(2)!;
+      if (content.trim().isEmpty) continue;
+      final day = int.parse(column.group(1)!);
+      final result = await _callTextAPI(config,
+          '${_getTextPrompt(content)}\n这是已按 PDF 坐标切分的星期$day单列。所有有节次的课程 weekday 必须为 $day。严格读取每项括号内节次和周次，不能参考相邻课程推断。');
+      for (final course in result['courses']) {
+        for (final schedule in course['schedules']) {
+          schedule['weekday'] = day;
+        }
+        courses.add(course);
+      }
+    }
+    // Preserve outside-table notes without letting them redefine weekday columns.
+    final notes =
+        text.replaceAll(pattern, '').replaceAll('---分页---', '').trim();
+    if (notes.isNotEmpty) {
+      final extra = await _callTextAPI(config, _getTextPrompt(notes));
+      courses.addAll(extra['courses']);
+    }
+    return {'name': '导入课表', 'courses': courses};
   }
 
   /// 测试AI配置

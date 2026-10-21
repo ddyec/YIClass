@@ -14,7 +14,7 @@ Actions 输出 `YIClass-unsigned.ipa`，其中包含 `Payload/Runner.app/PlugIns
 3. 签名工具必须保留并签署嵌入的 `.appex`，不能删除扩展。
 4. 如需更换 Bundle ID，请在 Actions 手动构建中填写 `bundle_id` 和可选 `app_group`。
    单独改主应用 ID 或仅重签主应用不能保证小组件工作。
-5. 如签名工具更换 App Group，还需同步主应用与扩展 Info.plist 的 `YIClassAppGroup`。
+5. 如签名工具更换 App Group，应用和扩展会尝试读取各自已安装描述文件中的可用共享组；两者仍必须授权同一组。
 
 App Groups 需要开发者账号及签名方式提供相应能力；普通免费侧载或会移除扩展/共享权限的签名服务不能保证此功能。
 不能只凭 IPA 构建成功宣称已通过 iPhone 小组件安装验收。
@@ -35,7 +35,7 @@ App Groups 需要开发者账号及签名方式提供相应能力；普通免费
 ```sh
 flutter pub get
 BUNDLE_ID=com.ddyec.yiclass APP_GROUP=group.com.ddyec.yiclass ruby scripts/configure_ios.rb
-flutter build ios --release --no-codesign --build-name 2.4.0 --build-number 1
+flutter build ios --release --no-codesign --build-name 2.4.1 --build-number 1
 python3 scripts/verify_ios_bundle.py build/ios/iphoneos/Runner.app
 ```
 

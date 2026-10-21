@@ -58,6 +58,36 @@ class PlanningEngine {
         integers(s['weekPattern'], 1, weeks);
       }
     }
+    final ids = <String>{};
+    for (final e in data['events'] as List? ?? []) {
+      if (e is! Map ||
+          e['id'] is! String ||
+          (e['id'] as String).isEmpty ||
+          !ids.add(e['id']) ||
+          e['name'] is! String ||
+          (e['name'] as String).trim().isEmpty) {
+        throw const FormatException('事件需要名称与唯一标识');
+      }
+      eventTime(e['start']);
+      eventTime(e['end']);
+      if (!eventTime(e['end']).isAfter(eventTime(e['start']))) {
+        throw const FormatException('事件结束时间必须晚于开始时间');
+      }
+    }
+  }
+
+  static DateTime eventTime(dynamic value) {
+    if (value is! String ||
+        !RegExp(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$').hasMatch(value)) {
+      throw const FormatException('事件时间需为本地 yyyy-MM-ddTHH:mm:ss');
+    }
+    final d = DateTime.tryParse(value);
+    if (d == null ||
+        '${_day(d)}T${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}:${d.second.toString().padLeft(2, '0')}' !=
+            value) {
+      throw const FormatException('事件日期或时间无效');
+    }
+    return d;
   }
 
   static Map<String, dynamic> apply(
@@ -77,10 +107,22 @@ class PlanningEngine {
     final maxPeriods = settings['maxPeriods'] as int;
     final holidays = List<String>.from(settings['holidays'] ?? []);
     final touched = <String>{};
+    final events = result.putIfAbsent('events', () => <dynamic>[]) as List;
     for (final dynamic raw in actions) {
       if (raw is! Map) throw const FormatException('操作格式错误');
       final a = Map<String, dynamic>.from(raw);
       final type = a['type'];
+      if (type == 'event') {
+        if (a['event'] is! Map) throw const FormatException('事件格式错误');
+        events.add(clone(Map<String, dynamic>.from(a['event'])));
+        continue;
+      }
+      if (type == 'removeEvent') {
+        final matches = events.where((e) => e['id'] == a['eventId']).toList();
+        if (matches.length != 1) throw const FormatException('事件不存在');
+        events.remove(matches.single);
+        continue;
+      }
       if (type == 'rest' || type == 'resume') {
         final date = DateTime.tryParse(a['date']?.toString() ?? '');
         if (date == null || a['date'] != _day(date)) {
@@ -202,9 +244,56 @@ class PlanningEngine {
         }
       }
     }
-    return occupied.entries
+    final found = occupied.entries
         .where((e) => e.value.length > 1)
         .map((e) => '${e.key}：${(e.value..sort()).join(' / ')}')
         .toList();
+    if ((data['events'] as List? ?? []).isEmpty) return found;
+    final intervals =
+        <({String name, DateTime start, DateTime end, bool event})>[];
+    for (final e in data['events'] as List? ?? []) {
+      intervals.add((
+        name: e['name'],
+        start: eventTime(e['start']),
+        end: eventTime(e['end']),
+        event: true
+      ));
+    }
+    final eventCount = intervals.length;
+    for (final c in data['courses']) {
+      for (final s in c['schedules']) {
+        for (final w in s['weekPattern']) {
+          final date = monday(settings).add(
+              Duration(days: ((w as int) - 1) * 7 + (s['weekday'] as int) - 1));
+          if (holidays.contains(_day(date))) continue;
+          for (final p in s['periods']) {
+            final time = (settings['classTimes'] as List? ?? [])
+                .where((t) => t['period'] == p)
+                .firstOrNull;
+            if (time == null) continue;
+            intervals.add((
+              name: c['name'],
+              start: DateTime.parse('${_day(date)}T${time['startTime']}:00'),
+              end: DateTime.parse('${_day(date)}T${time['endTime']}:00'),
+              event: false
+            ));
+          }
+        }
+      }
+    }
+    for (var i = 0; i < eventCount; i++) {
+      for (var j = i + 1; j < intervals.length; j++) {
+        final a = intervals[i], b = intervals[j];
+        if ((a.event || b.event) &&
+            a.start.isBefore(b.end) &&
+            b.start.isBefore(a.end)) {
+          final names = [a.name, b.name]..sort();
+          final start = a.start.isAfter(b.start) ? a.start : b.start;
+          found.add(
+              '${_day(start)} ${start.hour}:${start.minute.toString().padLeft(2, '0')}：${names.join(' / ')}');
+        }
+      }
+    }
+    return found.toSet().toList();
   }
 }

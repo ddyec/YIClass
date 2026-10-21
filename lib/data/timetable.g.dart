@@ -34,6 +34,10 @@ final TimetableSchema = IsarGeneratedSchema(
         type: IsarType.objectList,
         target: 'Course',
       ),
+      IsarPropertySchema(
+        name: 'eventsJson',
+        type: IsarType.string,
+      ),
     ],
     indexes: [],
   ),
@@ -72,12 +76,17 @@ int serializeTimetable(IsarWriter writer, Timetable object) {
     }
     IsarCore.endList(writer, listWriter);
   }
+  IsarCore.writeString(writer, 4, object.eventsJson);
   return object.id;
 }
 
 @isarProtected
 Timetable deserializeTimetable(IsarReader reader) {
-  final object = Timetable();
+  final String _eventsJson;
+  _eventsJson = IsarCore.readString(reader, 4) ?? '[]';
+  final object = Timetable(
+    eventsJson: _eventsJson,
+  );
   object.id = IsarCore.readId(reader);
   object.name = IsarCore.readString(reader, 1) ?? '';
   {
@@ -162,6 +171,8 @@ dynamic deserializeTimetableProp(IsarReader reader, int property) {
           }
         }
       }
+    case 4:
+      return IsarCore.readString(reader, 4) ?? '[]';
     default:
       throw ArgumentError('Unknown property: $property');
   }
@@ -171,6 +182,7 @@ sealed class _TimetableUpdate {
   bool call({
     required int id,
     String? name,
+    String? eventsJson,
   });
 }
 
@@ -183,11 +195,13 @@ class _TimetableUpdateImpl implements _TimetableUpdate {
   bool call({
     required int id,
     Object? name = ignore,
+    Object? eventsJson = ignore,
   }) {
     return collection.updateProperties([
           id
         ], {
           if (name != ignore) 1: name as String?,
+          if (eventsJson != ignore) 4: eventsJson as String?,
         }) >
         0;
   }
@@ -197,6 +211,7 @@ sealed class _TimetableUpdateAll {
   int call({
     required List<int> id,
     String? name,
+    String? eventsJson,
   });
 }
 
@@ -209,9 +224,11 @@ class _TimetableUpdateAllImpl implements _TimetableUpdateAll {
   int call({
     required List<int> id,
     Object? name = ignore,
+    Object? eventsJson = ignore,
   }) {
     return collection.updateProperties(id, {
       if (name != ignore) 1: name as String?,
+      if (eventsJson != ignore) 4: eventsJson as String?,
     });
   }
 }
@@ -225,6 +242,7 @@ extension TimetableUpdate on IsarCollection<int, Timetable> {
 sealed class _TimetableQueryUpdate {
   int call({
     String? name,
+    String? eventsJson,
   });
 }
 
@@ -237,9 +255,11 @@ class _TimetableQueryUpdateImpl implements _TimetableQueryUpdate {
   @override
   int call({
     Object? name = ignore,
+    Object? eventsJson = ignore,
   }) {
     return query.updateProperties(limit: limit, {
       if (name != ignore) 1: name as String?,
+      if (eventsJson != ignore) 4: eventsJson as String?,
     });
   }
 }
@@ -260,11 +280,13 @@ class _TimetableQueryBuilderUpdateImpl implements _TimetableQueryUpdate {
   @override
   int call({
     Object? name = ignore,
+    Object? eventsJson = ignore,
   }) {
     final q = query.build();
     try {
       return q.updateProperties(limit: limit, {
         if (name != ignore) 1: name as String?,
+        if (eventsJson != ignore) 4: eventsJson as String?,
       });
     } finally {
       q.close();
@@ -549,6 +571,184 @@ extension TimetableQueryFilter
       );
     });
   }
+
+  QueryBuilder<Timetable, Timetable, QAfterFilterCondition> eventsJsonEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        EqualCondition(
+          property: 4,
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<Timetable, Timetable, QAfterFilterCondition>
+      eventsJsonGreaterThan(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        GreaterCondition(
+          property: 4,
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<Timetable, Timetable, QAfterFilterCondition>
+      eventsJsonGreaterThanOrEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        GreaterOrEqualCondition(
+          property: 4,
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<Timetable, Timetable, QAfterFilterCondition> eventsJsonLessThan(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        LessCondition(
+          property: 4,
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<Timetable, Timetable, QAfterFilterCondition>
+      eventsJsonLessThanOrEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        LessOrEqualCondition(
+          property: 4,
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<Timetable, Timetable, QAfterFilterCondition> eventsJsonBetween(
+    String lower,
+    String upper, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        BetweenCondition(
+          property: 4,
+          lower: lower,
+          upper: upper,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<Timetable, Timetable, QAfterFilterCondition>
+      eventsJsonStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        StartsWithCondition(
+          property: 4,
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<Timetable, Timetable, QAfterFilterCondition> eventsJsonEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        EndsWithCondition(
+          property: 4,
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<Timetable, Timetable, QAfterFilterCondition> eventsJsonContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        ContainsCondition(
+          property: 4,
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<Timetable, Timetable, QAfterFilterCondition> eventsJsonMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        MatchesCondition(
+          property: 4,
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<Timetable, Timetable, QAfterFilterCondition>
+      eventsJsonIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const EqualCondition(
+          property: 4,
+          value: '',
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<Timetable, Timetable, QAfterFilterCondition>
+      eventsJsonIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const GreaterCondition(
+          property: 4,
+          value: '',
+        ),
+      );
+    });
+  }
 }
 
 extension TimetableQueryObject
@@ -594,6 +794,27 @@ extension TimetableQuerySortBy on QueryBuilder<Timetable, Timetable, QSortBy> {
       );
     });
   }
+
+  QueryBuilder<Timetable, Timetable, QAfterSortBy> sortByEventsJson(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(
+        4,
+        caseSensitive: caseSensitive,
+      );
+    });
+  }
+
+  QueryBuilder<Timetable, Timetable, QAfterSortBy> sortByEventsJsonDesc(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(
+        4,
+        sort: Sort.desc,
+        caseSensitive: caseSensitive,
+      );
+    });
+  }
 }
 
 extension TimetableQuerySortThenBy
@@ -623,6 +844,20 @@ extension TimetableQuerySortThenBy
       return query.addSortBy(1, sort: Sort.desc, caseSensitive: caseSensitive);
     });
   }
+
+  QueryBuilder<Timetable, Timetable, QAfterSortBy> thenByEventsJson(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(4, caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<Timetable, Timetable, QAfterSortBy> thenByEventsJsonDesc(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(4, sort: Sort.desc, caseSensitive: caseSensitive);
+    });
+  }
 }
 
 extension TimetableQueryWhereDistinct
@@ -631,6 +866,13 @@ extension TimetableQueryWhereDistinct
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(1, caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<Timetable, Timetable, QAfterDistinct> distinctByEventsJson(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(4, caseSensitive: caseSensitive);
     });
   }
 }
@@ -661,6 +903,12 @@ extension TimetableQueryProperty1
       return query.addProperty(3);
     });
   }
+
+  QueryBuilder<Timetable, String, QAfterProperty> eventsJsonProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addProperty(4);
+    });
+  }
 }
 
 extension TimetableQueryProperty2<R>
@@ -687,6 +935,12 @@ extension TimetableQueryProperty2<R>
   QueryBuilder<Timetable, (R, List<Course>), QAfterProperty> coursesProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addProperty(3);
+    });
+  }
+
+  QueryBuilder<Timetable, (R, String), QAfterProperty> eventsJsonProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addProperty(4);
     });
   }
 }
@@ -716,6 +970,12 @@ extension TimetableQueryProperty3<R1, R2>
       coursesProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addProperty(3);
+    });
+  }
+
+  QueryBuilder<Timetable, (R1, R2, String), QOperations> eventsJsonProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addProperty(4);
     });
   }
 }

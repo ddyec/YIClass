@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
 import '../../data/timetable.dart';
+import '../../data/course_schedule.dart';
 import '../../data/class_time.dart';
 import '../../services/ai/planning_engine.dart';
 import '../../services/file_service.dart';
+import '../../services/timetable/bell_schedule.dart';
+import '../../components/layout/appbar.dart';
+import '../../components/layout/cards.dart';
+import '../../components/layout/settingscard.dart';
+import '../../components/inputs/components.dart';
+import '../../components/inputs/timepicker.dart';
+import '../../components/inputs/datepicker.dart';
+import '../../components/feedback/notifications.dart';
 
 Future<Timetable?> reviewImport(BuildContext context, Timetable timetable) =>
     Navigator.push<Timetable>(
@@ -20,111 +29,179 @@ class ImportReviewPage extends StatefulWidget {
 class _ImportReviewPageState extends State<ImportReviewPage> {
   late final Timetable _timetable = widget.timetable;
   bool _confirmed = false;
-
-  Future<void> _pickTime(ClassTime time, bool start) async {
-    final parts = (start ? time.startTime : time.endTime).split(':');
-    final selected = await showTimePicker(
+  static const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+  Future<void> _pickTime(ClassTime time) async {
+    final a = BellSchedule.minutes(time.startTime),
+        b = BellSchedule.minutes(time.endTime);
+    final result = await YicoreTimeRangePicker.show(
         context: context,
-        initialTime:
-            TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1])),
-        builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
-            child: child!));
-    if (selected == null || !mounted) return;
-    String format(int minutes) =>
-        '${(minutes ~/ 60).toString().padLeft(2, '0')}:${(minutes % 60).toString().padLeft(2, '0')}';
-    setState(() {
-      if (start) {
-        time.startTime = format(selected.hour * 60 + selected.minute);
-        time.endTime =
-            format((selected.hour * 60 + selected.minute + 45) % 1440);
-      } else {
-        time.endTime = format(selected.hour * 60 + selected.minute);
+        initial: TimeRange(
+            startHour: a ~/ 60,
+            startMinute: a % 60,
+            endHour: b ~/ 60,
+            endMinute: b % 60));
+    if (result != null && mounted) {
+      setState(() {
+        time.startTime = result.formatStart();
+        time.endTime = result.formatEnd();
+        _confirmed = false;
+      });
+    }
+  }
+
+  Future<void> _editSchedule(CourseSchedule schedule) async {
+    var weekday = schedule.weekday;
+    final periods = TextEditingController(text: schedule.periods.join(','));
+    final weeks = TextEditingController(text: schedule.weekPattern.join(','));
+    final result = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => StatefulBuilder(
+            builder: (ctx, update) => AlertDialog(
+                  title: const Text('调整上课安排'),
+                  content: SingleChildScrollView(
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    DropdownButton<int>(
+                        value: weekday,
+                        isExpanded: true,
+                        items: [
+                          for (var d = 1; d <= 7; d++)
+                            DropdownMenuItem(value: d, child: Text(days[d - 1]))
+                        ],
+                        onChanged: (v) => update(() => weekday = v!)),
+                    YicoreTextField(
+                        labelText: '节次 · 逗号分隔', controller: periods),
+                    const SizedBox(height: 12),
+                    YicoreTextField(labelText: '周次 · 逗号分隔', controller: weeks),
+                  ])),
+                  actions: [
+                    TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('取消')),
+                    YicoreButton(
+                        text: '保存', onPressed: () => Navigator.pop(ctx, true))
+                  ],
+                )));
+    if (result == true && mounted) {
+      try {
+        List<int> parse(String text, int max) => PlanningEngine.integers(
+            text
+                .replaceAll('，', ',')
+                .split(',')
+                .map((v) => int.parse(v.trim()))
+                .toList(),
+            1,
+            max);
+        final p = parse(periods.text, _timetable.settings.maxPeriods),
+            w = parse(weeks.text, _timetable.settings.totalWeeks);
+        setState(() {
+          schedule.weekday = weekday;
+          schedule.periods = p;
+          schedule.weekPattern = w;
+          _confirmed = false;
+        });
+      } catch (_) {
+        Notifications.sonner(context, message: '请输入有效节次与周次');
       }
-    });
+    }
+    periods.dispose();
+    weeks.dispose();
+  }
+
+  void _save() {
+    final times = _timetable.settings.classTimes;
+    for (var i = 0; i < times.length; i++) {
+      final start = BellSchedule.minutes(times[i].startTime),
+          end = BellSchedule.minutes(times[i].endTime);
+      if (start >= end ||
+          (i > 0 && start < BellSchedule.minutes(times[i - 1].endTime))) {
+        Notifications.sonner(context, message: '请检查节次时间重叠');
+        return;
+      }
+    }
+    _timetable.id = 0;
+    Navigator.pop(context, _timetable);
   }
 
   @override
   Widget build(BuildContext context) {
-    final s = _timetable.settings;
+    final settings = _timetable.settings;
     final conflicts = PlanningEngine.conflicts(FileService.toMap(_timetable));
     return Scaffold(
-      appBar: AppBar(title: const Text('确认导入')),
-      body: SafeArea(
-          child: ListView(padding: const EdgeInsets.all(20), children: [
-        Text(_timetable.name, style: Theme.of(context).textTheme.titleLarge),
-        ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('第 1 周周一'),
-            subtitle: Text(s.startDate.toIso8601String().substring(0, 10)),
-            trailing: const Icon(Icons.calendar_month),
-            onTap: () async {
-              final date = await showDatePicker(
-                  context: context,
-                  initialDate: s.startDate,
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime(2100));
-              if (date != null && mounted) {
-                setState(() {
-                  s.startDate = date.subtract(Duration(days: date.weekday - 1));
-                  _confirmed = false;
-                });
-              }
-            }),
-        const Text('点按时间可调整；修改开始时间后，默认按 45 分钟计算结束时间。'),
-        for (final time in s.classTimes)
-          Row(children: [
-            SizedBox(width: 70, child: Text('第 ${time.period} 节')),
-            TextButton(
-                onPressed: () => _pickTime(time, true),
-                child: Text(time.startTime)),
-            const Text('—'),
-            TextButton(
-                onPressed: () => _pickTime(time, false),
-                child: Text(time.endTime)),
-          ]),
-        const Divider(),
-        Text('${_timetable.courses.length} 门课程 / 事件'),
-        for (final c in _timetable.courses)
-          ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(c.name),
+      backgroundColor: const Color(0xFFF7F7F7),
+      appBar: const YicoreAppBar(title: '确认导入', centerTitle: true),
+      body: ListView(padding: const EdgeInsets.all(16), children: [
+        SettingsBlock(title: _timetable.name, children: [
+          SettingsItem.value(
+              title: '第 1 周周一',
+              value: settings.startDate.toIso8601String().substring(0, 10),
+              inBlock: true,
+              onTap: () async {
+                final day = await YicoreDatePicker.show(
+                    context: context,
+                    initialDate: settings.startDate,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2100));
+                if (day != null && mounted) {
+                  setState(() {
+                    settings.startDate =
+                        day.subtract(Duration(days: day.weekday - 1));
+                    _confirmed = false;
+                  });
+                }
+              }),
+          ExpansionTile(
+              title: const Text('课程时间'),
               subtitle: Text(
-                  '${c.location} ${c.teacher}\n${c.schedules.isEmpty ? '未指定节次，请后续安排' : c.schedules.map((s) => '星期${s.weekday} ${s.periods.join(',')}节 · 第${s.weekPattern.join(',')}周').join('\n')}')),
+                  '上午 ${settings.morningPeriods} 节 · 下午 ${settings.afternoonPeriods} 节 · 晚上 ${settings.maxPeriods - settings.morningPeriods - settings.afternoonPeriods} 节'),
+              children: [
+                for (final t in settings.classTimes)
+                  SettingsItem.value(
+                      title: '第 ${t.period} 节',
+                      value: '${t.startTime}–${t.endTime}',
+                      inBlock: true,
+                      onTap: () => _pickTime(t)),
+              ]),
+        ]),
+        const SizedBox(height: 16),
+        for (var day = 1; day <= 7; day++) ...[
+          if (_timetable.courses
+              .any((c) => c.schedules.any((s) => s.weekday == day)))
+            SettingsBlock(title: days[day - 1], children: [
+              for (final c in _timetable.courses)
+                for (final s in c.schedules.where((s) => s.weekday == day))
+                  SettingsItem(
+                      title: c.name,
+                      description:
+                          '第 ${s.periods.join('、')} 节 · 第 ${s.weekPattern.join('、')} 周\n${c.location}',
+                      showArrow: true,
+                      inBlock: true,
+                      onTap: () => _editSchedule(s)),
+            ]),
+          const SizedBox(height: 12),
+        ],
+        if (_timetable.courses.any((c) => c.schedules.isEmpty))
+          YicoreCard(
+              child: ExpansionTile(title: const Text('待安排课程'), children: [
+            for (final c
+                in _timetable.courses.where((c) => c.schedules.isEmpty))
+              ListTile(title: Text(c.name), subtitle: Text(c.location))
+          ])),
         if (conflicts.isNotEmpty)
-          Text('原课表存在冲突：\n${conflicts.take(8).join('\n')}'),
+          Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text('请先修正时间冲突：\n${conflicts.take(8).join('\n')}',
+                  style: const TextStyle(color: Colors.red))),
         CheckboxListTile(
-            value: _confirmed,
+            activeColor: Colors.black,
             contentPadding: EdgeInsets.zero,
-            title: const Text('已核对第 1 周周一、作息及课程周次'),
-            onChanged: (value) => setState(() => _confirmed = value ?? false)),
-        FilledButton(
-            onPressed: !_confirmed
-                ? null
-                : () {
-                    var lastEnd = -1;
-                    for (final time in s.classTimes) {
-                      int minutes(String v) {
-                        final p = v.split(':');
-                        return int.parse(p[0]) * 60 + int.parse(p[1]);
-                      }
-
-                      final start = minutes(time.startTime),
-                          end = minutes(time.endTime);
-                      if (start >= end || start < lastEnd) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('节次时间需按顺序排列，且开始早于结束')));
-                        return;
-                      }
-                      lastEnd = end;
-                    }
-                    _timetable.id =
-                        0; // Imported IDs must never overwrite another timetable.
-                    Navigator.pop(context, _timetable);
-                  },
-            child: const Text('导入为新课表')),
-      ])),
+            value: _confirmed,
+            title: const Text('已核对星期、周次和作息'),
+            onChanged: (v) => setState(() => _confirmed = v ?? false)),
+        YicoreButton(
+            text: '导入为新课表',
+            onPressed: _confirmed && conflicts.isEmpty ? _save : null),
+        const SizedBox(height: 24),
+      ]),
     );
   }
 }

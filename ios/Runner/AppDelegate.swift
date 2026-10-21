@@ -45,7 +45,48 @@ import PDFKit
       guard pdf.pageCount <= 30 else {
         result(FlutterError(code: "PDF", message: "请使用不超过 30 页的课表 PDF", details: nil)); return
       }
-      let text = (0..<pdf.pageCount).compactMap { pdf.page(at: $0)?.string }.joined(separator: "\n---分页---\n")
+      // PDF string reading order can interleave neighboring timetable columns.
+      // Crop each weekday spatially before sending text to the model.
+      var sections = [String]()
+      var previousHeaders = [(day: Int, bounds: CGRect)]()
+      var columnText = [Int: String]()
+      let labels = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
+      for index in 0..<pdf.pageCount {
+        guard let page = pdf.page(at: index) else { continue }
+        var headers = [(day: Int, bounds: CGRect)]()
+        for (day, label) in labels.enumerated() {
+          for selection in pdf.findString(label, withOptions: []) where selection.pages.contains(page) {
+            headers.append((day + 1, selection.bounds(for: page)))
+          }
+        }
+        // Only treat a complete horizontal weekday header as a table.
+        let hasHeader = headers.count == 7
+        let sorted = (hasHeader ? headers : previousHeaders).sorted { $0.bounds.midX < $1.bounds.midX }
+        if sorted.count == 7 && Set(sorted.map { $0.day }).count == 7 &&
+            (sorted.map { $0.bounds.midY }.max()! - sorted.map { $0.bounds.midY }.min()!) < 15 {
+          let box = page.bounds(for: .mediaBox)
+          previousHeaders = sorted
+          let rowBottom = hasHeader ? sorted.map { $0.bounds.minY }.min()! : box.maxY
+          let footer = pdf.findString("其他课程", withOptions: []).first { $0.pages.contains(page) }?.bounds(for: page)
+          let bodyBottom = footer.map { $0.maxY + 1 } ?? box.minY
+          for i in sorted.indices {
+            let center = sorted[i].bounds.midX
+            let left = i == 0 ? center - (sorted[1].bounds.midX - center) / 2 : (sorted[i-1].bounds.midX + center) / 2
+            let right = i == 6 ? center + (center - sorted[5].bounds.midX) / 2 : (center + sorted[i+1].bounds.midX) / 2
+            let rect = CGRect(x: left + 1, y: bodyBottom, width: right - left - 2, height: rowBottom - bodyBottom)
+            columnText[sorted[i].day, default: ""] += "\n" + (page.selection(for: rect)?.string ?? "")
+          }
+          if let footer = footer {
+            sections.append(page.selection(for: CGRect(x: box.minX, y: box.minY, width: box.width, height: footer.maxY - box.minY))?.string ?? "")
+          }
+        } else {
+          sections.append(page.string ?? "")
+        }
+      }
+      for day in columnText.keys.sorted() {
+        sections.append("[YICLASS_COLUMN weekday=\(day)]\n\(columnText[day]!)\n[/YICLASS_COLUMN]")
+      }
+      let text = sections.joined(separator: "\n---分页---\n")
       guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
         result(FlutterError(code: "PDF", message: "这是扫描版 PDF，请转为图片并使用视觉模型导入", details: nil)); return
       }

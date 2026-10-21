@@ -70,6 +70,16 @@ struct ScheduleProvider: TimelineProvider {
     let monday = calendar.date(byAdding: .day, value: -((weekday + 5) % 7), to: start)!
     let holidays = Set((settings["holidays"] as? [String] ?? []).map { String($0.prefix(10)) })
     var lessons = [Lesson]()
+    let eventFormatter = DateFormatter()
+    eventFormatter.locale = Locale(identifier: "en_US_POSIX")
+    eventFormatter.calendar = Calendar(identifier: .gregorian)
+    eventFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+    for event in root["events"] as? [[String: Any]] ?? [] {
+      if let start = event["start"] as? String, let end = event["end"] as? String,
+         let begin = eventFormatter.date(from: start), let finish = eventFormatter.date(from: end) {
+        lessons.append(Lesson(id: "event-\(event["id"] ?? "")", name: event["name"] as? String ?? "事件", location: event["location"] as? String ?? "", start: begin, end: finish))
+      }
+    }
     func clock(_ day: Date, _ value: String?) -> Date? {
       guard let parts = value?.split(separator: ":"), parts.count == 2,
             let h = Int(parts[0]), let m = Int(parts[1]) else { return nil }
@@ -107,7 +117,7 @@ struct ScheduleWidgetView: View {
   @Environment(\.widgetFamily) var family
   let entry: ScheduleEntry
   var content: some View {
-    VStack(alignment: .leading, spacing: 6) {
+    VStack(alignment: .leading, spacing: family == .systemMedium ? 4 : 6) {
       HStack {
         Text(entry.lessons.first.map { $0.start <= entry.date ? "正在上课" : "下一节" } ?? "YIClass")
           .font(.caption.weight(.semibold)).foregroundColor(.blue)
@@ -121,14 +131,23 @@ struct ScheduleWidgetView: View {
           Text(next.start, style: .time)
           Text("–")
           Text(next.end, style: .time)
+          if family == .systemMedium {
+            Spacer(minLength: 4)
+            Text(next.location.isEmpty ? "地点待定" : next.location).font(.caption2).lineLimit(1)
+          }
         }.font(.subheadline.monospacedDigit())
-        Text(next.location.isEmpty ? "地点待定" : next.location).font(.caption).lineLimit(1)
+        if family == .systemSmall {
+          Text(next.location.isEmpty ? "地点待定" : next.location).font(.caption).lineLimit(1)
+        }
         if family == .systemMedium {
           ForEach(Array(entry.lessons.dropFirst().prefix(2))) { lesson in
-            HStack {
-              Text(lesson.start, format: .dateTime.day().hour().minute()).font(.caption.monospacedDigit()).foregroundColor(.secondary)
-              Text(lesson.name).font(.caption).lineLimit(1)
-              Spacer(minLength: 0)
+            VStack(alignment: .leading, spacing: 1) {
+              HStack {
+                Text(lesson.name).font(.caption).lineLimit(1)
+                Spacer(minLength: 4)
+                Text(lesson.start, format: .dateTime.day().hour().minute()).font(.caption2.monospacedDigit()).foregroundColor(.secondary)
+              }
+              Text(lesson.location.isEmpty ? "地点待定" : lesson.location).font(.caption2).foregroundColor(.secondary).lineLimit(1)
             }
           }
         }

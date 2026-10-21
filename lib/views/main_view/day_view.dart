@@ -11,6 +11,7 @@ import '../../components/layout/course_card.dart';
 import '../../routes/route_utils.dart';
 import '../../data/timetable.dart';
 import '../../components/layout/appbar.dart';
+import '../../components/layout/timed_events.dart';
 
 /// 日视图组件
 ///
@@ -74,7 +75,7 @@ class _DayViewState extends State<DayView> with AutomaticKeepAliveClientMixin {
       final now = DateTime.now();
       final startDate = timetable.settings.startDate;
       final isNotStarted = now.isBefore(startDate);
-      
+
       return Scaffold(
         backgroundColor: const Color(0xFFF7F7F7),
         appBar: YicoreAppBar(
@@ -145,6 +146,12 @@ class DayViewUI extends StatelessWidget {
                 onDaySelected: onDaySelected,
               ),
               const SizedBox(height: 8),
+              TimedEvents(
+                  timetable: timetable,
+                  start: timetable.settings.startDate.add(
+                      Duration(days: (currentWeek - 1) * 7 + selectedDay - 1)),
+                  end: timetable.settings.startDate.add(
+                      Duration(days: (currentWeek - 1) * 7 + selectedDay))),
               Expanded(
                 child: CourseList(
                   timetable: timetable,

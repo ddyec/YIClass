@@ -51,6 +51,7 @@ class AIConfig {
   /// 获取预设的视觉模型
   static List<String> getPresetVisionModels() {
     return [
+      'deepseek-flash',
       'gpt-4-vision-preview',
       'gpt-4o',
       'gpt-4o-mini',
@@ -91,8 +92,8 @@ class AIConfig {
       case 'deepseek':
         return const AIConfig(
           endpoint: 'https://api.deepseek.com/chat/completions',
-          visionModel: '',
-          textModel: 'deepseek-chat',
+          visionModel: 'deepseek-flash',
+          textModel: 'deepseek-flash',
         );
       default:
         return const AIConfig();

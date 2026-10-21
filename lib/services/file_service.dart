@@ -31,6 +31,7 @@ class FileService {
       'name': t.name,
       'settings': _settingsToMap(t.settings),
       'courses': t.courses.map(_courseToMap).toList(),
+      'events': t.events,
       'version': '2.0',
       'exportTime': DateTime.now().toIso8601String(),
     };
@@ -43,6 +44,11 @@ class FileService {
       'totalWeeks': s.totalWeeks,
       'showWeekend': s.showWeekend,
       'maxPeriods': s.maxPeriods,
+      'morningPeriods': s.morningPeriods,
+      'afternoonPeriods': s.afternoonPeriods,
+      'lessonMinutes': s.lessonMinutes,
+      'shortBreakMinutes': s.shortBreakMinutes,
+      'longBreakMinutes': s.longBreakMinutes,
       'classTimes': s.classTimes
           .map((t) => {
                 'period': t.period,
@@ -144,6 +150,15 @@ class FileService {
       ..startDate = startDate
       ..totalWeeks = totalWeeks
       ..showWeekend = showWeekend
+      ..lessonMinutes = settingsMap['lessonMinutes'] as int? ?? 45
+      ..shortBreakMinutes = settingsMap['shortBreakMinutes'] as int? ?? 10
+      ..longBreakMinutes = settingsMap['longBreakMinutes'] as int? ?? 20
+      ..morningPeriods =
+          (settingsMap['morningPeriods'] as int? ?? 4).clamp(0, maxPeriods)
+      ..afternoonPeriods = (settingsMap['afternoonPeriods'] as int? ?? 4).clamp(
+          0,
+          maxPeriods -
+              (settingsMap['morningPeriods'] as int? ?? 4).clamp(0, maxPeriods))
       ..classTimes = classTimes
       ..holidays = holidays
       ..reminderMinutes = reminderMinutes;
@@ -154,6 +169,9 @@ class FileService {
     final t = Timetable()
       ..id = (m['id'] as int? ?? 0)
       ..name = m['name']?.toString() ?? ''
+      ..events = (m['events'] as List? ?? [])
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList()
       ..settings = s
       ..courses = (m['courses'] as List)
           .map((e) => _courseFromMap(Map<String, dynamic>.from(e)))

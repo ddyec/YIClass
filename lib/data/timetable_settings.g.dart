@@ -32,6 +32,26 @@ final TimetableSettingsSchema = IsarGeneratedSchema(
         type: IsarType.long,
       ),
       IsarPropertySchema(
+        name: 'morningPeriods',
+        type: IsarType.long,
+      ),
+      IsarPropertySchema(
+        name: 'afternoonPeriods',
+        type: IsarType.long,
+      ),
+      IsarPropertySchema(
+        name: 'lessonMinutes',
+        type: IsarType.long,
+      ),
+      IsarPropertySchema(
+        name: 'shortBreakMinutes',
+        type: IsarType.long,
+      ),
+      IsarPropertySchema(
+        name: 'longBreakMinutes',
+        type: IsarType.long,
+      ),
+      IsarPropertySchema(
         name: 'classTimes',
         type: IsarType.objectList,
         target: 'ClassTime',
@@ -60,9 +80,14 @@ int serializeTimetableSettings(IsarWriter writer, TimetableSettings object) {
   IsarCore.writeLong(writer, 2, object.totalWeeks);
   IsarCore.writeBool(writer, 3, value: object.showWeekend);
   IsarCore.writeLong(writer, 4, object.maxPeriods);
+  IsarCore.writeLong(writer, 5, object.morningPeriods);
+  IsarCore.writeLong(writer, 6, object.afternoonPeriods);
+  IsarCore.writeLong(writer, 7, object.lessonMinutes);
+  IsarCore.writeLong(writer, 8, object.shortBreakMinutes);
+  IsarCore.writeLong(writer, 9, object.longBreakMinutes);
   {
     final list = object.classTimes;
-    final listWriter = IsarCore.beginList(writer, 5, list.length);
+    final listWriter = IsarCore.beginList(writer, 10, list.length);
     for (var i = 0; i < list.length; i++) {
       {
         final value = list[i];
@@ -75,19 +100,70 @@ int serializeTimetableSettings(IsarWriter writer, TimetableSettings object) {
   }
   {
     final list = object.holidays;
-    final listWriter = IsarCore.beginList(writer, 6, list.length);
+    final listWriter = IsarCore.beginList(writer, 11, list.length);
     for (var i = 0; i < list.length; i++) {
       IsarCore.writeLong(listWriter, i, list[i].toUtc().microsecondsSinceEpoch);
     }
     IsarCore.endList(writer, listWriter);
   }
-  IsarCore.writeLong(writer, 7, object.reminderMinutes);
+  IsarCore.writeLong(writer, 12, object.reminderMinutes);
   return 0;
 }
 
 @isarProtected
 TimetableSettings deserializeTimetableSettings(IsarReader reader) {
-  final object = TimetableSettings();
+  final int _morningPeriods;
+  {
+    final value = IsarCore.readLong(reader, 5);
+    if (value == -9223372036854775808) {
+      _morningPeriods = 4;
+    } else {
+      _morningPeriods = value;
+    }
+  }
+  final int _afternoonPeriods;
+  {
+    final value = IsarCore.readLong(reader, 6);
+    if (value == -9223372036854775808) {
+      _afternoonPeriods = 4;
+    } else {
+      _afternoonPeriods = value;
+    }
+  }
+  final int _lessonMinutes;
+  {
+    final value = IsarCore.readLong(reader, 7);
+    if (value == -9223372036854775808) {
+      _lessonMinutes = 45;
+    } else {
+      _lessonMinutes = value;
+    }
+  }
+  final int _shortBreakMinutes;
+  {
+    final value = IsarCore.readLong(reader, 8);
+    if (value == -9223372036854775808) {
+      _shortBreakMinutes = 10;
+    } else {
+      _shortBreakMinutes = value;
+    }
+  }
+  final int _longBreakMinutes;
+  {
+    final value = IsarCore.readLong(reader, 9);
+    if (value == -9223372036854775808) {
+      _longBreakMinutes = 20;
+    } else {
+      _longBreakMinutes = value;
+    }
+  }
+  final object = TimetableSettings(
+    morningPeriods: _morningPeriods,
+    afternoonPeriods: _afternoonPeriods,
+    lessonMinutes: _lessonMinutes,
+    shortBreakMinutes: _shortBreakMinutes,
+    longBreakMinutes: _longBreakMinutes,
+  );
   {
     final value = IsarCore.readLong(reader, 1);
     if (value == -9223372036854775808) {
@@ -102,7 +178,7 @@ TimetableSettings deserializeTimetableSettings(IsarReader reader) {
   object.showWeekend = IsarCore.readBool(reader, 3);
   object.maxPeriods = IsarCore.readLong(reader, 4);
   {
-    final length = IsarCore.readList(reader, 5, IsarCore.readerPtrPtr);
+    final length = IsarCore.readList(reader, 10, IsarCore.readerPtrPtr);
     {
       final reader = IsarCore.readerPtr;
       if (reader.isNull) {
@@ -128,7 +204,7 @@ TimetableSettings deserializeTimetableSettings(IsarReader reader) {
     }
   }
   {
-    final length = IsarCore.readList(reader, 6, IsarCore.readerPtrPtr);
+    final length = IsarCore.readList(reader, 11, IsarCore.readerPtrPtr);
     {
       final reader = IsarCore.readerPtr;
       if (reader.isNull) {
@@ -154,7 +230,7 @@ TimetableSettings deserializeTimetableSettings(IsarReader reader) {
       }
     }
   }
-  object.reminderMinutes = IsarCore.readLong(reader, 7);
+  object.reminderMinutes = IsarCore.readLong(reader, 12);
   return object;
 }
 
@@ -433,6 +509,436 @@ extension TimetableSettingsQueryFilter
   }
 
   QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      morningPeriodsEqualTo(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        EqualCondition(
+          property: 5,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      morningPeriodsGreaterThan(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        GreaterCondition(
+          property: 5,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      morningPeriodsGreaterThanOrEqualTo(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        GreaterOrEqualCondition(
+          property: 5,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      morningPeriodsLessThan(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        LessCondition(
+          property: 5,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      morningPeriodsLessThanOrEqualTo(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        LessOrEqualCondition(
+          property: 5,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      morningPeriodsBetween(
+    int lower,
+    int upper,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        BetweenCondition(
+          property: 5,
+          lower: lower,
+          upper: upper,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      afternoonPeriodsEqualTo(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        EqualCondition(
+          property: 6,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      afternoonPeriodsGreaterThan(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        GreaterCondition(
+          property: 6,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      afternoonPeriodsGreaterThanOrEqualTo(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        GreaterOrEqualCondition(
+          property: 6,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      afternoonPeriodsLessThan(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        LessCondition(
+          property: 6,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      afternoonPeriodsLessThanOrEqualTo(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        LessOrEqualCondition(
+          property: 6,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      afternoonPeriodsBetween(
+    int lower,
+    int upper,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        BetweenCondition(
+          property: 6,
+          lower: lower,
+          upper: upper,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      lessonMinutesEqualTo(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        EqualCondition(
+          property: 7,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      lessonMinutesGreaterThan(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        GreaterCondition(
+          property: 7,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      lessonMinutesGreaterThanOrEqualTo(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        GreaterOrEqualCondition(
+          property: 7,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      lessonMinutesLessThan(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        LessCondition(
+          property: 7,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      lessonMinutesLessThanOrEqualTo(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        LessOrEqualCondition(
+          property: 7,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      lessonMinutesBetween(
+    int lower,
+    int upper,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        BetweenCondition(
+          property: 7,
+          lower: lower,
+          upper: upper,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      shortBreakMinutesEqualTo(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        EqualCondition(
+          property: 8,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      shortBreakMinutesGreaterThan(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        GreaterCondition(
+          property: 8,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      shortBreakMinutesGreaterThanOrEqualTo(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        GreaterOrEqualCondition(
+          property: 8,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      shortBreakMinutesLessThan(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        LessCondition(
+          property: 8,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      shortBreakMinutesLessThanOrEqualTo(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        LessOrEqualCondition(
+          property: 8,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      shortBreakMinutesBetween(
+    int lower,
+    int upper,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        BetweenCondition(
+          property: 8,
+          lower: lower,
+          upper: upper,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      longBreakMinutesEqualTo(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        EqualCondition(
+          property: 9,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      longBreakMinutesGreaterThan(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        GreaterCondition(
+          property: 9,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      longBreakMinutesGreaterThanOrEqualTo(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        GreaterOrEqualCondition(
+          property: 9,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      longBreakMinutesLessThan(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        LessCondition(
+          property: 9,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      longBreakMinutesLessThanOrEqualTo(
+    int value,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        LessOrEqualCondition(
+          property: 9,
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
+      longBreakMinutesBetween(
+    int lower,
+    int upper,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        BetweenCondition(
+          property: 9,
+          lower: lower,
+          upper: upper,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TimetableSettings, TimetableSettings, QAfterFilterCondition>
       classTimesIsEmpty() {
     return not().classTimesIsNotEmpty();
   }
@@ -441,7 +947,7 @@ extension TimetableSettingsQueryFilter
       classTimesIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
-        const GreaterOrEqualCondition(property: 5, value: null),
+        const GreaterOrEqualCondition(property: 10, value: null),
       );
     });
   }
@@ -453,7 +959,7 @@ extension TimetableSettingsQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
         EqualCondition(
-          property: 6,
+          property: 11,
           value: value,
         ),
       );
@@ -467,7 +973,7 @@ extension TimetableSettingsQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
         GreaterCondition(
-          property: 6,
+          property: 11,
           value: value,
         ),
       );
@@ -481,7 +987,7 @@ extension TimetableSettingsQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
         GreaterOrEqualCondition(
-          property: 6,
+          property: 11,
           value: value,
         ),
       );
@@ -495,7 +1001,7 @@ extension TimetableSettingsQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
         LessCondition(
-          property: 6,
+          property: 11,
           value: value,
         ),
       );
@@ -509,7 +1015,7 @@ extension TimetableSettingsQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
         LessOrEqualCondition(
-          property: 6,
+          property: 11,
           value: value,
         ),
       );
@@ -524,7 +1030,7 @@ extension TimetableSettingsQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
         BetweenCondition(
-          property: 6,
+          property: 11,
           lower: lower,
           upper: upper,
         ),
@@ -541,7 +1047,7 @@ extension TimetableSettingsQueryFilter
       holidaysIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
-        const GreaterOrEqualCondition(property: 6, value: null),
+        const GreaterOrEqualCondition(property: 11, value: null),
       );
     });
   }
@@ -553,7 +1059,7 @@ extension TimetableSettingsQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
         EqualCondition(
-          property: 7,
+          property: 12,
           value: value,
         ),
       );
@@ -567,7 +1073,7 @@ extension TimetableSettingsQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
         GreaterCondition(
-          property: 7,
+          property: 12,
           value: value,
         ),
       );
@@ -581,7 +1087,7 @@ extension TimetableSettingsQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
         GreaterOrEqualCondition(
-          property: 7,
+          property: 12,
           value: value,
         ),
       );
@@ -595,7 +1101,7 @@ extension TimetableSettingsQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
         LessCondition(
-          property: 7,
+          property: 12,
           value: value,
         ),
       );
@@ -609,7 +1115,7 @@ extension TimetableSettingsQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
         LessOrEqualCondition(
-          property: 7,
+          property: 12,
           value: value,
         ),
       );
@@ -624,7 +1130,7 @@ extension TimetableSettingsQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
         BetweenCondition(
-          property: 7,
+          property: 12,
           lower: lower,
           upper: upper,
         ),

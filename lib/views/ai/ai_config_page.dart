@@ -365,7 +365,7 @@ class _AIConfigPageState extends State<AIConfigPage> {
       _endpointController.text = preset.endpoint;
       _visionModelController.text = preset.visionModel;
       _textModelController.text = preset.textModel;
-      if (provider == 'deepseek') _enableImageImport = false;
+      if (provider == 'deepseek') _enableImageImport = true;
     });
   }
 }

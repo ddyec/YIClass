@@ -17,6 +17,11 @@ class TimetableSettings {
 
   /// 最大节数
   late int maxPeriods;
+  int morningPeriods;
+  int afternoonPeriods;
+  int lessonMinutes;
+  int shortBreakMinutes;
+  int longBreakMinutes;
 
   /// 每日课时具体上课和下课时间安排
   late List<ClassTime> classTimes;
@@ -27,5 +32,5 @@ class TimetableSettings {
   /// 上课前提醒分钟数
   late int reminderMinutes;
 
-  TimetableSettings();
+  TimetableSettings({this.morningPeriods=4,this.afternoonPeriods=4,this.lessonMinutes=45,this.shortBreakMinutes=10,this.longBreakMinutes=20});
 }

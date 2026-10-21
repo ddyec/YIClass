@@ -242,17 +242,19 @@ class _AIImportPageState extends State<AIImportPage> {
             uniformTypeIdentifiers: ['com.adobe.pdf'])
       ]);
       if (file == null) return;
-      if (await file.length() > 20 * 1024 * 1024)
+      if (await file.length() > 20 * 1024 * 1024) {
         throw const FormatException('PDF 请小于 20 MB');
+      }
       final text = await const MethodChannel('yiclass/ios')
           .invokeMethod<String>('readPdf', {'path': file.path});
-      if (text == null || text.length > 100000)
+      if (text == null || text.length > 100000) {
         throw const FormatException('PDF 内容为空或过长');
+      }
       if (!mounted) return;
       await _handleAIImport(
           context: context,
           importType: 'PDF',
-          analyzer: () => AIService.analyzeText(text));
+          analyzer: () => AIService.analyzePdf(text));
     } catch (e) {
       if (mounted) Notifications.sonner(context, message: '$e');
     }
@@ -262,7 +264,9 @@ class _AIImportPageState extends State<AIImportPage> {
     final config = await AIConfigService.getConfig();
     if (!mounted) return;
     if (!_checkConfig(
-        context, config.enabled && config.enableImageImport, '图片导入')) return;
+        context, config.enabled && config.enableImageImport, '图片导入')) {
+      return;
+    }
 
     final XFile? image = await _picker.pickImage(
       source: ImageSource.gallery,
@@ -287,7 +291,9 @@ class _AIImportPageState extends State<AIImportPage> {
     final config = await AIConfigService.getConfig();
     if (!mounted) return;
     if (!_checkConfig(
-        context, config.enabled && config.enableTableImport, '表格导入')) return;
+        context, config.enabled && config.enableTableImport, '表格导入')) {
+      return;
+    }
 
     final tableText = await _showTableInputDialog(context);
     if (tableText == null || tableText.isEmpty) return;
@@ -304,7 +310,9 @@ class _AIImportPageState extends State<AIImportPage> {
     final config = await AIConfigService.getConfig();
     if (!mounted) return;
     if (!_checkConfig(
-        context, config.enabled && config.enableTextImport, '文字导入')) return;
+        context, config.enabled && config.enableTextImport, '文字导入')) {
+      return;
+    }
 
     final text = await _showTextInputDialog(context);
     if (text == null || text.isEmpty) return;
@@ -321,7 +329,9 @@ class _AIImportPageState extends State<AIImportPage> {
     final config = await AIConfigService.getConfig();
     if (!mounted) return;
     if (!_checkConfig(
-        context, config.enabled && config.enableWebImport, 'AI 教务导入')) return;
+        context, config.enabled && config.enableWebImport, 'AI 教务导入')) {
+      return;
+    }
 
     // 跳转到 AI 教务导入页面
     Navigator.push(

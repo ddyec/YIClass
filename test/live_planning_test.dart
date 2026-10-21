@@ -11,7 +11,7 @@ void main() {
   final scenarios = <String, String>{
     'move': '把第4周周一1、2节化学移动到同周周六1、2节，其他不动。',
     'rest': '第4周周一全天休假，把当天化学补到同周周六1、2节。',
-    'emergency': '第4周周一1、2节安排紧急会议，把原来同一时间的化学移动到同周周六1、2节。',
+    'emergency': '第4周周一08:43到10:07安排紧急会议，地点办公室，把原来同一时间的化学移动到同周周六1、2节。',
     'ambiguous': '帮我调一下化学课。',
     'add': '第5周周日第5、6节安排图书馆自习，地点图书馆。',
   };
@@ -58,7 +58,9 @@ void main() {
           expect(containsSlot('化学', 6, 4), isTrue);
         }
         if (scenario.key == 'emergency') {
-          expect(containsSlot('会议', 1, 4), isTrue);
+          final event = (result['events'] as List).single;
+          expect(event['start'], '2026-09-21T08:43:00');
+          expect(event['end'], '2026-09-21T10:07:00');
         }
         if (scenario.key == 'add') expect(containsSlot('自习', 7, 5), isTrue);
       }

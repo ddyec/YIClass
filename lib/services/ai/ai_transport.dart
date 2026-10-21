@@ -28,14 +28,21 @@ class AITransport {
     http.Client? client,
   }) async {
     final transport = client ?? http.Client();
+    final uri = endpoint(url);
+    final payload = Map<String, dynamic>.from(body);
+    // Flash enables high-effort reasoning by default; structured extraction
+    // needs the token budget for JSON output rather than an empty final answer.
+    if (uri.host == 'api.deepseek.com') {
+      payload.putIfAbsent('thinking', () => {'type': 'disabled'});
+    }
     try {
       final response = await transport
-          .post(endpoint(url),
+          .post(uri,
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': 'Bearer ${apiKey.trim()}',
               },
-              body: jsonEncode(body))
+              body: jsonEncode(payload))
           .timeout(const Duration(seconds: 90));
       if (response.statusCode != 200) {
         final hint = switch (response.statusCode) {

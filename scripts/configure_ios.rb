@@ -49,7 +49,7 @@ project.build_configurations.each { |c| c.build_settings['IPHONEOS_DEPLOYMENT_TA
       s['GENERATE_INFOPLIST_FILE'] = 'NO'
       s['APPLICATION_EXTENSION_API_ONLY'] = 'YES'
       s['SKIP_INSTALL'] = 'YES'
-      s['FLUTTER_BUILD_NAME'] = ENV.fetch('APP_VERSION', '2.4.0')
+      s['FLUTTER_BUILD_NAME'] = ENV.fetch('APP_VERSION', '2.4.1')
       s['FLUTTER_BUILD_NUMBER'] = ENV.fetch('BUILD_NUMBER', '1')
       s['LD_RUNPATH_SEARCH_PATHS'] = ['$(inherited)', '@executable_path/Frameworks', '@executable_path/../../Frameworks']
     end
