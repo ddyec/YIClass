@@ -32,7 +32,7 @@ func fixture(rotated: Bool) -> PDFDocument {
         draw("(1-2节)4-14周", x: CGFloat(70 + day * 100), y: 480)
       }
     } else {
-      draw("续页课程", x: 170, y: 520)
+      draw("续表课程", x: 170, y: 520)
       draw("(9-10节)5-11周(单)", x: 170, y: 500)
       draw("其他课程：网络课", x: 40, y: 100)
     }
@@ -60,7 +60,7 @@ for rotated in [false, true] {
     for other in 1...7 where other != day {
       check(!column.contains("课程\(other)"), "Adjacent weekday leaked into column")
     }
-    check(column.contains("续页课程") == (day == 2), "Continuation page lost its weekday")
+    check(column.contains("续表课程") == (day == 2), "Continuation page lost its weekday")
     check(!column.contains("网络课"), "Footer leaked into scheduled courses")
   }
   check(text.contains("其他课程"), "Unscheduled course notes lost")

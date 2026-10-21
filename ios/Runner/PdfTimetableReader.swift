@@ -4,11 +4,6 @@ import PDFKit
 /// PDF text is stored in unrotated page coordinates and may contain Kangxi
 /// radicals (星期⼀/星期⼆/星期⽇). Normalize both text and display geometry.
 enum PdfTimetableReader {
-  struct Glyph {
-    let text: String
-    let bounds: CGRect
-  }
-
   static func normalize(_ text: String) -> String {
     text.precomposedStringWithCompatibilityMapping
   }
@@ -27,32 +22,32 @@ enum PdfTimetableReader {
       let transform = page.pageRef?.getDrawingTransform(
         .mediaBox, rect: display, rotate: 0, preserveAspectRatio: true) ?? .identity
       let raw = (page.string ?? "") as NSString
-      var glyphs = [Glyph]()
       var normalized = ""
-      var origins = [CGRect]()
+      var sourceRanges = [NSRange]()
       var offset = 0
       while offset < raw.length {
         let range = raw.rangeOfComposedCharacterSequence(at: offset)
         let text = normalize(raw.substring(with: range))
-        var bounds = CGRect.null
-        for i in range.location..<NSMaxRange(range) {
-          let charBox = page.characterBounds(at: i)
-          if !charBox.isEmpty { bounds = bounds.union(charBox.applying(transform)) }
-        }
         normalized += text
-        origins.append(contentsOf: Array(repeating: bounds, count: (text as NSString).length))
-        if !bounds.isNull && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-          glyphs.append(Glyph(text: text, bounds: bounds))
-        }
+        sourceRanges.append(contentsOf: Array(repeating: range, count: (text as NSString).length))
         offset = NSMaxRange(range)
       }
       func matches(_ pattern: String) -> [CGRect] {
         let regex = try! NSRegularExpression(pattern: pattern)
-        return regex.matches(in: normalized, range: NSRange(location: 0, length: (normalized as NSString).length))
-          .map { match in
-            origins[match.range.location..<NSMaxRange(match.range)]
-              .reduce(CGRect.null) { $0.union($1) }
-          }.filter { !$0.isNull && !$0.isEmpty }
+        var found = [CGRect]()
+        for match in regex.matches(in: normalized, range: NSRange(location: 0, length: (normalized as NSString).length)) {
+          let first = sourceRanges[match.range.location]
+          let last = sourceRanges[NSMaxRange(match.range) - 1]
+          let value = raw.substring(with: NSRange(location: first.location, length: NSMaxRange(last) - first.location))
+          // PDFKit's characterBounds indices exclude synthesized line breaks,
+          // unlike page.string indices. Find the original substring instead of
+          // mapping NSString offsets into characterBounds(at:).
+          for selection in pdf.findString(value, withOptions: []) where selection.pages.contains(page) {
+            let bounds = selection.bounds(for: page).applying(transform)
+            if !bounds.isEmpty && !found.contains(bounds) { found.append(bounds) }
+          }
+        }
+        return found
       }
       let labels = ["一", "二", "三", "四", "五", "六", "[日天]"]
       let candidates = labels.map { matches("(?:星\\s*期|周)\\s*\($0)") }
@@ -92,14 +87,13 @@ enum PdfTimetableReader {
           : (centers[i - 1] * display.width + center) / 2
         let right = i == 6 ? center + (center - centers[5] * display.width) / 2
           : (center + centers[i + 1] * display.width) / 2
-        let selected = glyphs.filter {
-          $0.bounds.midX >= left && $0.bounds.midX < right &&
-          $0.bounds.midY < top && $0.bounds.midY >= bottom
-        }
-        columns[i + 1, default: ""] += "\n" + lines(selected)
+        let rect = CGRect(x: left + 0.5, y: bottom, width: right - left - 1, height: max(0, top - bottom))
+        let content = page.selection(for: rect.applying(transform.inverted()))?.string ?? ""
+        columns[i + 1, default: ""] += "\n" + normalize(content)
       }
       if let footer = footer {
-        sections.append(lines(glyphs.filter { $0.bounds.midY <= footer.maxY }))
+        let rect = CGRect(x: display.minX, y: display.minY, width: display.width, height: footer.maxY - display.minY)
+        sections.append(normalize(page.selection(for: rect.applying(transform.inverted()))?.string ?? ""))
       }
     }
     for day in columns.keys.sorted() {
@@ -108,28 +102,4 @@ enum PdfTimetableReader {
     return sections.joined(separator: "\n---分页---\n")
   }
 
-  private static func lines(_ glyphs: [Glyph]) -> String {
-    var rows = [[Glyph]]()
-    for glyph in glyphs.sorted(by: { $0.bounds.midY > $1.bounds.midY }) {
-      if let last = rows.last, let first = last.first,
-         abs(first.bounds.midY - glyph.bounds.midY) < max(2, first.bounds.height * 0.45) {
-        rows[rows.count - 1].append(glyph)
-      } else {
-        rows.append([glyph])
-      }
-    }
-    return rows.map { row in
-      let sorted = row.sorted { $0.bounds.minX < $1.bounds.minX }
-      var text = ""
-      var previous: CGRect?
-      for glyph in sorted {
-        if let previous = previous, glyph.bounds.minX - previous.maxX > glyph.bounds.height * 0.35 {
-          text += " "
-        }
-        text += glyph.text
-        previous = glyph.bounds
-      }
-      return text
-    }.joined(separator: "\n")
-  }
 }
