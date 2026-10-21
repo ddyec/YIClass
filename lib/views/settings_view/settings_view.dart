@@ -213,7 +213,7 @@ class _SettingsPageState extends State<SettingsPage>
 
         if (picked != null && mounted) {
           try {
-            timetable.settings.startDate = picked;
+            timetable.settings.startDate = picked.subtract(Duration(days: picked.weekday - 1));
             await timetableState.put(timetable);
 
             if (mounted) {

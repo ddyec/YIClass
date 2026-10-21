@@ -25,6 +25,13 @@ unless widget
   thin_index = runner.build_phases.index { |phase| phase.respond_to?(:name) && phase.name == 'Thin Binary' }
   runner.build_phases.insert(thin_index || runner.build_phases.length, embed)
 end
+shared = project.main_group.groups.find { |g| g.name == 'Shared' } || project.main_group.new_group('Shared', 'Shared')
+shared_file = shared.files.find { |f| f.path == 'SharedGroup.swift' } || shared.new_file('SharedGroup.swift')
+[runner, widget].each do |target|
+  unless target.source_build_phase.files_references.include?(shared_file)
+    target.source_build_phase.add_file_reference(shared_file)
+  end
+end
 project.build_configurations.each { |c| c.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0' }
 [runner, widget].each do |target|
   target.build_configurations.each do |config|
@@ -36,6 +43,8 @@ project.build_configurations.each { |c| c.build_settings['IPHONEOS_DEPLOYMENT_TA
     s['SWIFT_VERSION'] = '5.0'
     s['TARGETED_DEVICE_FAMILY'] = '1,2'
     if target == widget
+      s['PRODUCT_NAME'] = 'ScheduleWidget'
+      s['PRODUCT_MODULE_NAME'] = 'ScheduleWidget'
       s['INFOPLIST_FILE'] = 'ScheduleWidget/Info.plist'
       s['GENERATE_INFOPLIST_FILE'] = 'NO'
       s['APPLICATION_EXTENSION_API_ONLY'] = 'YES'

@@ -99,6 +99,8 @@ class FileService {
     } else {
       startDate = DateTime.now();
     }
+    startDate = DateTime(startDate.year, startDate.month, startDate.day)
+        .subtract(Duration(days: startDate.weekday - 1));
 
     // totalWeeks / showWeekend（使用 DataConstants 默认值）
     final int totalWeeks =

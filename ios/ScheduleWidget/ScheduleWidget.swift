@@ -49,8 +49,7 @@ struct ScheduleProvider: TimelineProvider {
   }
 
   private func loadLessons() -> ([Lesson], String) {
-    let group = Bundle.main.object(forInfoDictionaryKey: "YIClassAppGroup") as? String ?? ""
-    guard let directory = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group) else {
+    guard let directory = SharedGroup.container()?.url else {
       return ([], "签名需授权共享 App Group")
     }
     guard let data = try? Data(contentsOf: directory.appendingPathComponent("timetable.json")),
@@ -110,19 +109,19 @@ struct ScheduleWidgetView: View {
   var content: some View {
     VStack(alignment: .leading, spacing: 6) {
       HStack {
-        Text("YIClass").font(.caption.weight(.semibold)).foregroundColor(.secondary)
+        Text(entry.lessons.first.map { $0.start <= entry.date ? "正在上课" : "下一节" } ?? "YIClass")
+          .font(.caption.weight(.semibold)).foregroundColor(.blue)
         Spacer()
-        Text(entry.date, style: .date).font(.caption2).foregroundColor(.secondary)
+        Text(entry.lessons.first?.start ?? entry.date, format: .dateTime.month().day())
+          .font(.caption2).foregroundColor(.secondary)
       }
       if let next = entry.lessons.first {
-        Text(next.start <= entry.date ? "正在上课" : "下一节").font(.caption).foregroundColor(.blue)
         Text(next.name).font(.headline).lineLimit(family == .systemSmall ? 2 : 1)
         HStack(spacing: 3) {
           Text(next.start, style: .time)
           Text("–")
           Text(next.end, style: .time)
         }.font(.subheadline.monospacedDigit())
-        Text(next.start, format: .dateTime.month().day().weekday()).font(.caption2).foregroundColor(.secondary)
         Text(next.location.isEmpty ? "地点待定" : next.location).font(.caption).lineLimit(1)
         if family == .systemMedium {
           ForEach(Array(entry.lessons.dropFirst().prefix(2))) { lesson in

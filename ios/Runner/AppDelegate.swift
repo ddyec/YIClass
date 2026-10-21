@@ -21,8 +21,9 @@ import PDFKit
   }
 
   private func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    let group = Bundle.main.object(forInfoDictionaryKey: "YIClassAppGroup") as? String ?? ""
-    let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group)
+    let shared = SharedGroup.container()
+    let group = shared?.identifier ?? (Bundle.main.object(forInfoDictionaryKey: "YIClassAppGroup") as? String ?? "")
+    let container = shared?.url
     switch call.method {
     case "widgetStatus": result(["available": container != nil, "group": group])
     case "updateWidget":
@@ -30,6 +31,7 @@ import PDFKit
         result(FlutterError(code: "APP_GROUP", message: "签名未授权 App Group：\(group)", details: nil)); return
       }
       do {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let data = try JSONSerialization.data(withJSONObject: call.arguments ?? [:])
         try data.write(to: directory.appendingPathComponent("timetable.json"), options: .atomic)
         WidgetCenter.shared.reloadTimelines(ofKind: "YIClassSchedule")

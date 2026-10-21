@@ -91,6 +91,7 @@ class AIConfig {
       case 'deepseek':
         return const AIConfig(
           endpoint: 'https://api.deepseek.com/chat/completions',
+          visionModel: '',
           textModel: 'deepseek-chat',
         );
       default:

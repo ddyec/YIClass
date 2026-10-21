@@ -10,6 +10,9 @@ class AIService {
     if (!config.enabled) {
       throw Exception('AI功能未启用，请先在设置中配置');
     }
+    if (!config.isVisionValid || Uri.parse(config.endpoint).host == 'api.deepseek.com') {
+      throw const FormatException('图片识别需要支持视觉的模型；DeepSeek 请使用文字或 PDF 导入');
+    }
 
     final prompt = _getImagePrompt();
     return await _callVisionAPI(config, imageBase64, prompt);

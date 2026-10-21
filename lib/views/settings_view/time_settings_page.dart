@@ -32,7 +32,7 @@ class _TimeSettingsPageState extends State<TimeSettingsPage> {
   DateTime? _selectedDate;
   int _maxPeriods = DataConstants.defaultMaxPeriods;
   bool _useSameDuration = false;
-  final TextEditingController _durationController = TextEditingController();
+  final TextEditingController _durationController = TextEditingController(text: '45');
 
   // ==================== 生命周期 ====================
   @override
@@ -111,7 +111,9 @@ class _TimeSettingsPageState extends State<TimeSettingsPage> {
       timetable.settings.classTimes = classTimesList;
       timetable.settings.maxPeriods = _maxPeriods;
       if (_selectedDate != null) {
-        timetable.settings.startDate = _selectedDate!;
+        final day = _selectedDate!;
+        timetable.settings.startDate = DateTime(day.year, day.month, day.day)
+            .subtract(Duration(days: day.weekday - 1));
       }
 
       // 保存到数据库
