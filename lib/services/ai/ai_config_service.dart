@@ -26,23 +26,17 @@ class AIConfig {
 
   /// 验证配置是否完整
   bool get isValid {
-    return apiKey.isNotEmpty && 
-           endpoint.isNotEmpty && 
-           textModel.isNotEmpty;
+    return apiKey.isNotEmpty && endpoint.isNotEmpty && textModel.isNotEmpty;
   }
 
   /// 验证文本功能配置
   bool get isTextValid {
-    return apiKey.isNotEmpty && 
-           endpoint.isNotEmpty && 
-           textModel.isNotEmpty;
+    return apiKey.isNotEmpty && endpoint.isNotEmpty && textModel.isNotEmpty;
   }
 
   /// 验证视觉功能配置
   bool get isVisionValid {
-    return apiKey.isNotEmpty && 
-           endpoint.isNotEmpty && 
-           visionModel.isNotEmpty;
+    return apiKey.isNotEmpty && endpoint.isNotEmpty && visionModel.isNotEmpty;
   }
 
   /// 获取预设的API端点
@@ -90,7 +84,7 @@ class AIConfig {
         );
       case 'gemini':
         return const AIConfig(
-          endpoint: 'https://generativelanguage.googleapis.com/v1',
+          endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai',
           visionModel: 'gemini-1.5-pro',
           textModel: 'gemini-1.5-pro',
         );
@@ -110,7 +104,7 @@ class AIConfigService {
   /// 获取配置（从 SettingsService 读取）
   static Future<AIConfig> getConfig() async {
     final settings = await SettingsService.instance.loadSettings();
-    
+
     return AIConfig(
       apiKey: settings.aiApiKey,
       endpoint: settings.aiEndpoint,

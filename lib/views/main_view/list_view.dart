@@ -89,15 +89,24 @@ class CourseListViewUI extends StatelessWidget {
 
   /// 构建按周次分组的课程列表
   Widget _buildCourseList() {
+    final unscheduled = timetable.courses.where((c) => c.schedules.isEmpty).toList();
     // 如果没有课程，显示空状态提示
-    if (groupedCourses.isEmpty) {
+    if (groupedCourses.isEmpty && unscheduled.isEmpty) {
       return _buildEmptyState();
     }
 
     return ListView.builder(
       padding: const EdgeInsets.all(8),
-      itemCount: groupedCourses.length,
+      itemCount: groupedCourses.length + (unscheduled.isEmpty ? 0 : 1),
       itemBuilder: (context, index) {
+        if (unscheduled.isNotEmpty) {
+          if (index == 0) {
+            return ExpansionTile(title: Text('待安排课程 (${unscheduled.length})'), children: [
+              for (final c in unscheduled) ListTile(title: Text(c.name), subtitle: Text('${c.location} ${c.teacher}')),
+            ]);
+          }
+          index--;
+        }
         final week = groupedCourses.keys.elementAt(index);
         final weekCourses = groupedCourses[week]!;
 

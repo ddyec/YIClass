@@ -9,7 +9,9 @@ class QueryService {
   /// - week: 周次
   /// 返回：该周上课的课程列表
   static List<Course> weekCourses(Timetable t, int week) {
-    return t.courses.where((c) => c.schedules.any((s) => s.weekPattern.contains(week))).toList();
+    return t.courses
+        .where((c) => c.schedules.any((s) => s.weekPattern.contains(week)))
+        .toList();
   }
 
   /// 某周某天的课程
@@ -18,7 +20,11 @@ class QueryService {
   /// - weekday: 周几（1-7）
   /// 返回：课程列表
   static List<Course> dayCourses(Timetable t, int week, int weekday) {
-    return t.courses.where((c) => c.schedules.any((s) => s.weekday == weekday && s.weekPattern.contains(week))).toList();
+    if (isHoliday(t, week, weekday)) return [];
+    return t.courses
+        .where((c) => c.schedules
+            .any((s) => s.weekday == weekday && s.weekPattern.contains(week)))
+        .toList();
   }
 
   /// 某周某天某节的课程（首个匹配）
@@ -28,9 +34,12 @@ class QueryService {
   /// - period: 节次
   /// 返回：首个匹配课程或 null
   static Course? periodCourse(Timetable t, int week, int weekday, int period) {
+    if (isHoliday(t, week, weekday)) return null;
     for (final c in t.courses) {
       for (final s in c.schedules) {
-        if (s.weekday == weekday && s.weekPattern.contains(week) && s.periods.contains(period)) {
+        if (s.weekday == weekday &&
+            s.weekPattern.contains(week) &&
+            s.periods.contains(period)) {
           return c;
         }
       }
@@ -44,11 +53,14 @@ class QueryService {
   /// - weekday: 周几（1-7）
   /// - startPeriod: 起始节次
   /// 返回：从起始节起连续的同课程节次数量
-  static int consecutivePeriods(Timetable t, int week, int weekday, int startPeriod) {
+  static int consecutivePeriods(
+      Timetable t, int week, int weekday, int startPeriod) {
     final c = periodCourse(t, week, weekday, startPeriod);
     if (c == null) return 0;
     for (final s in c.schedules) {
-      if (s.weekday == weekday && s.weekPattern.contains(week) && s.periods.contains(startPeriod)) {
+      if (s.weekday == weekday &&
+          s.weekPattern.contains(week) &&
+          s.periods.contains(startPeriod)) {
         int count = 0;
         int p = startPeriod;
         while (s.periods.contains(p)) {
@@ -67,11 +79,15 @@ class QueryService {
   /// - weekday: 周几（1-7）
   /// - period: 节次
   /// 返回：所有匹配的课程列表
-  static List<Course> periodCourses(Timetable t, int week, int weekday, int period) {
+  static List<Course> periodCourses(
+      Timetable t, int week, int weekday, int period) {
+    if (isHoliday(t, week, weekday)) return [];
     final courses = <Course>[];
     for (final c in t.courses) {
       for (final s in c.schedules) {
-        if (s.weekday == weekday && s.weekPattern.contains(week) && s.periods.contains(period)) {
+        if (s.weekday == weekday &&
+            s.weekPattern.contains(week) &&
+            s.periods.contains(period)) {
           courses.add(c);
           break; // 同一课程只添加一次
         }
@@ -79,5 +95,13 @@ class QueryService {
     }
     return courses;
   }
-}
 
+  static bool isHoliday(Timetable t, int week, int weekday) {
+    final start = t.settings.startDate;
+    final monday = DateTime(start.year, start.month, start.day)
+        .subtract(Duration(days: start.weekday - 1));
+    final date = monday.add(Duration(days: (week - 1) * 7 + weekday - 1));
+    return t.settings.holidays.any((h) =>
+        h.year == date.year && h.month == date.month && h.day == date.day);
+  }
+}

@@ -1,0 +1,210 @@
+import 'dart:convert';
+
+/// AI only proposes operations. This deterministic engine validates and applies
+/// them to an isolated snapshot; persistence always requires a separate action.
+class PlanningEngine {
+  static Map<String, dynamic> clone(Map<String, dynamic> value) =>
+      jsonDecode(jsonEncode(value)) as Map<String, dynamic>;
+
+  static List<int> integers(dynamic value, int min, int max) {
+    if (value is! List ||
+        value.isEmpty ||
+        value.any((v) => v is! int || v < min || v > max) ||
+        value.toSet().length != value.length) {
+      throw FormatException('无效范围：需要 $min–$max 的非重复整数');
+    }
+    return value.cast<int>().toList()..sort();
+  }
+
+  static DateTime monday(Map settings) {
+    final d = DateTime.parse(settings['startDate'] as String);
+    final day = DateTime(d.year, d.month, d.day);
+    return day.subtract(Duration(days: day.weekday - 1));
+  }
+
+  static void validate(Map<String, dynamic> data) {
+    if (data['name'] is! String ||
+        (data['name'] as String).trim().isEmpty ||
+        data['courses'] is! List) {
+      throw const FormatException('课表需要名称和课程列表');
+    }
+    final settings = data['settings'] as Map? ?? {};
+    final weeks = settings['totalWeeks'] ?? 20;
+    final periods = settings['maxPeriods'] ?? 16;
+    if (weeks is! int ||
+        weeks < 1 ||
+        weeks > 20 ||
+        periods is! int ||
+        periods < 1 ||
+        periods > 16) {
+      throw const FormatException('周数或节次数超出范围');
+    }
+    for (final c in data['courses']) {
+      if (c is! Map ||
+          c['name'] is! String ||
+          (c['name'] as String).trim().isEmpty ||
+          c['schedules'] is! List) {
+        throw const FormatException('课程格式错误');
+      }
+      // Empty schedules intentionally preserve unscheduled/online courses.
+      for (final s in c['schedules']) {
+        if (s is! Map ||
+            s['weekday'] is! int ||
+            s['weekday'] < 1 ||
+            s['weekday'] > 7) {
+          throw const FormatException('星期需要为 1–7');
+        }
+        integers(s['periods'], 1, periods);
+        integers(s['weekPattern'], 1, weeks);
+      }
+    }
+  }
+
+  static Map<String, dynamic> apply(
+      Map<String, dynamic> baseline, Map<String, dynamic> plan) {
+    validate(baseline);
+    if (plan['questions'] is! List || (plan['questions'] as List).isNotEmpty) {
+      throw const FormatException('请先补充 AI 提出的问题，再生成方案');
+    }
+    final actions = plan['actions'];
+    if (actions is! List || actions.isEmpty || actions.length > 100) {
+      throw const FormatException('方案需要 1–100 项操作');
+    }
+    final result = clone(baseline);
+    final settings = result['settings'] as Map;
+    final courses = result['courses'] as List;
+    final maxWeeks = settings['totalWeeks'] as int;
+    final maxPeriods = settings['maxPeriods'] as int;
+    final holidays = List<String>.from(settings['holidays'] ?? []);
+    final touched = <String>{};
+    for (final dynamic raw in actions) {
+      if (raw is! Map) throw const FormatException('操作格式错误');
+      final a = Map<String, dynamic>.from(raw);
+      final type = a['type'];
+      if (type == 'rest' || type == 'resume') {
+        final date = DateTime.tryParse(a['date']?.toString() ?? '');
+        if (date == null || a['date'] != _day(date)) {
+          throw const FormatException('日期必须为 yyyy-MM-dd');
+        }
+        final offset = date.difference(monday(settings)).inDays;
+        if (offset < 0 || offset >= maxWeeks * 7) {
+          throw const FormatException('日期不在本学期内');
+        }
+        holidays.removeWhere((h) => h.startsWith(a['date'] as String));
+        if (type == 'rest') holidays.add(date.toIso8601String());
+        continue;
+      }
+      if (type == 'add') {
+        final course = a['course'];
+        if (course is! Map ||
+            (course['schedules'] as List?)?.isEmpty != false) {
+          throw const FormatException('新增事件必须指定节次和周次');
+        }
+        courses.add(clone(Map<String, dynamic>.from(course)));
+        continue;
+      }
+      if (type != 'move' && type != 'cancel' && type != 'copy') {
+        throw const FormatException('未知操作');
+      }
+      final ci = a['courseIndex'];
+      final si = a['scheduleIndex'];
+      if (ci is! int ||
+          ci < 0 ||
+          ci >= (baseline['courses'] as List).length ||
+          si is! int ||
+          si < 0 ||
+          si >= (baseline['courses'][ci]['schedules'] as List).length) {
+        throw const FormatException('课程或时间段已不存在');
+      }
+      final course = courses[ci] as Map;
+      final source = course['schedules'][si] as Map;
+      final weeks = integers(a['weeks'], 1, maxWeeks);
+      for (final week in weeks) {
+        if (!(source['weekPattern'] as List).contains(week) ||
+            !touched.add('$ci/$si/$week')) {
+          throw const FormatException('同一课程周次被重复操作或不存在');
+        }
+      }
+      if (type != 'cancel') {
+        final targetWeeks = integers(a['targetWeeks'], 1, maxWeeks);
+        final targetPeriods = integers(a['targetPeriods'], 1, maxPeriods);
+        final weekday = a['targetWeekday'];
+        if (weekday is! int ||
+            weekday < 1 ||
+            weekday > 7 ||
+            targetWeeks.length != weeks.length ||
+            targetPeriods.length != (source['periods'] as List).length) {
+          throw const FormatException('调课应保留课次与节数，并指定有效星期');
+        }
+        final moved = clone(Map<String, dynamic>.from(course));
+        moved['schedules'] = [
+          {
+            'weekday': weekday,
+            'periods': targetPeriods,
+            'weekPattern': targetWeeks,
+          }
+        ];
+        if (a['location'] is String) moved['location'] = a['location'];
+        courses.add(moved);
+      }
+      if (type != 'copy') {
+        source['weekPattern'] = (source['weekPattern'] as List)
+            .where((w) => !weeks.contains(w))
+            .toList();
+      }
+    }
+    for (final c in courses) {
+      (c['schedules'] as List)
+          .removeWhere((s) => (s['weekPattern'] as List).isEmpty);
+    }
+    settings['holidays'] = holidays;
+    validate(result);
+    for (final c in courses.skip((baseline['courses'] as List).length)) {
+      for (final s in c['schedules']) {
+        for (final w in s['weekPattern']) {
+          final date = monday(settings).add(
+              Duration(days: ((w as int) - 1) * 7 + (s['weekday'] as int) - 1));
+          if (holidays.any((h) => h.startsWith(_day(date)))) {
+            throw const FormatException('目标日期是休假日，请明确恢复上课或另选时间');
+          }
+        }
+      }
+    }
+    // Existing conflicts may be repaired in stages; only new collisions block.
+    final oldConflicts = conflicts(baseline).toSet();
+    final introduced =
+        conflicts(result).where((c) => !oldConflicts.contains(c));
+    if (introduced.isNotEmpty) {
+      throw FormatException('方案产生冲突：${introduced.take(8).join('；')}');
+    }
+    return result;
+  }
+
+  static String _day(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  static List<String> conflicts(Map<String, dynamic> data) {
+    final settings = data['settings'] as Map;
+    final holidays = (settings['holidays'] as List? ?? [])
+        .map((d) => d.toString().substring(0, 10))
+        .toSet();
+    final occupied = <String, List<String>>{};
+    for (final c in data['courses']) {
+      for (final s in c['schedules']) {
+        for (final w in s['weekPattern']) {
+          final date = monday(settings).add(
+              Duration(days: ((w as int) - 1) * 7 + (s['weekday'] as int) - 1));
+          if (holidays.contains(_day(date))) continue;
+          for (final p in s['periods']) {
+            final key = '第$w周 星期${s['weekday']} 第$p节';
+            occupied.putIfAbsent(key, () => []).add(c['name'] as String);
+          }
+        }
+      }
+    }
+    return occupied.entries
+        .where((e) => e.value.length > 1)
+        .map((e) => '${e.key}：${(e.value..sort()).join(' / ')}')
+        .toList();
+  }
+}

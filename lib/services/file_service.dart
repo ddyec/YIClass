@@ -1,8 +1,12 @@
 import 'dart:convert';
 import 'dart:io' show Platform;
-import 'dart:typed_data';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart' show BuildContext;
+import 'package:flutter/services.dart';
+import '../views/ai/import_review_page.dart';
+import 'settings_service.dart';
+import 'ai/planning_engine.dart';
 import '../data/timetable.dart';
 import '../data/timetable_settings.dart';
 import '../data/class_time.dart';
@@ -39,6 +43,13 @@ class FileService {
       'totalWeeks': s.totalWeeks,
       'showWeekend': s.showWeekend,
       'maxPeriods': s.maxPeriods,
+      'classTimes': s.classTimes
+          .map((t) => {
+                'period': t.period,
+                'startTime': t.startTime,
+                'endTime': t.endTime
+              })
+          .toList(),
       'holidays': s.holidays.map((d) => d.toIso8601String()).toList(),
       'reminderMinutes': s.reminderMinutes,
     };
@@ -72,7 +83,9 @@ class FileService {
   /// - m: 包含课表、设置、课程与时间安排的 Map
   /// 返回：Timetable 实例
   static Timetable fromMap(Map<String, dynamic> m) {
-    final Map<String, dynamic> settingsMap = Map<String, dynamic>.from(m['settings'] as Map? ?? {});
+    PlanningEngine.validate(m);
+    final Map<String, dynamic> settingsMap =
+        Map<String, dynamic>.from(m['settings'] as Map? ?? {});
 
     // startDate（默认当前时间）
     final String? startDateStr = settingsMap['startDate'] as String?;
@@ -88,21 +101,29 @@ class FileService {
     }
 
     // totalWeeks / showWeekend（使用 DataConstants 默认值）
-    final int totalWeeks = settingsMap['totalWeeks'] as int? ?? DataConstants.defaultTotalWeeks;
-    final bool showWeekend = settingsMap['showWeekend'] as bool? ?? DataConstants.defaultShowWeekend;
+    final int totalWeeks =
+        settingsMap['totalWeeks'] as int? ?? DataConstants.defaultTotalWeeks;
+    final bool showWeekend =
+        settingsMap['showWeekend'] as bool? ?? DataConstants.defaultShowWeekend;
 
     // maxPeriods：缺失用默认值
-    final int maxPeriods = settingsMap['maxPeriods'] as int? ?? DataConstants.defaultMaxPeriods;
+    final int maxPeriods =
+        settingsMap['maxPeriods'] as int? ?? DataConstants.defaultMaxPeriods;
 
-    // classTimes：不解析输入，按 maxPeriods 直接生成默认时段
-    final List<ClassTime> classTimes = List<ClassTime>.generate(maxPeriods, (index) {
+    final suppliedTimes = settingsMap['classTimes'] as List?;
+    final List<ClassTime> classTimes =
+        List<ClassTime>.generate(maxPeriods, (index) {
       final int period = index + 1;
-      final String def = DataConstants.defaultPeriodTimes[period.toString()] ?? '08:00-08:45';
+      final String def =
+          DataConstants.defaultPeriodTimes[period.toString()] ?? '08:00-08:45';
       final List<String> parts = def.split('-');
+      final input = suppliedTimes
+          ?.where((t) => t is Map && t['period'] == period)
+          .firstOrNull;
       return ClassTime()
         ..period = period
-        ..startTime = parts.isNotEmpty ? parts.first : '08:00'
-        ..endTime = parts.length > 1 ? parts.last : '08:45';
+        ..startTime = input?['startTime'] as String? ?? parts.first
+        ..endTime = input?['endTime'] as String? ?? parts.last;
     });
 
     // holidays（默认空数组）
@@ -139,7 +160,6 @@ class FileService {
     return t;
   }
 
-
   /// 从 Map 构建 Course
   static Course _courseFromMap(Map<String, dynamic> m) {
     final c = Course()
@@ -150,7 +170,8 @@ class FileService {
         final dynamic colorAny = m['color'];
         if (colorAny is int && colorAny > 0) return colorAny;
         // 无颜色字段或非法值：从预设颜色中选择（使用课程信息做种子，避免批量导入时同毫秒导致颜色相同）
-        final seed = '${m['name'] ?? ''}|${m['location'] ?? ''}|${m['teacher'] ?? ''}|${m['schedules']?.hashCode ?? ''}|${m.hashCode}';
+        final seed =
+            '${m['name'] ?? ''}|${m['location'] ?? ''}|${m['teacher'] ?? ''}|${m['schedules']?.hashCode ?? ''}|${m.hashCode}';
         return ColorUtils.getRandomColor(seed).toARGB32();
       })()
       ..schedules = (m['schedules'] as List)
@@ -162,7 +183,7 @@ class FileService {
   /// 从 Map 构建 CourseSchedule
   static CourseSchedule _scheduleFromMap(Map<String, dynamic> m) {
     final s = CourseSchedule()
-      ..weekday = (m['weekday'] ?? m['day']) as int  // 兼容旧格式
+      ..weekday = (m['weekday'] ?? m['day']) as int // 兼容旧格式
       ..periods = (m['periods'] as List).cast<int>().toList()
       ..weekPattern = (m['weekPattern'] as List).cast<int>().toList();
     return s;
@@ -171,10 +192,12 @@ class FileService {
   // ===== JSON 便捷方法 =====
 
   /// 导出为 JSON 字符串（带缩进）
-  static String toJson(Timetable t) => const JsonEncoder.withIndent('  ').convert(toMap(t));
+  static String toJson(Timetable t) =>
+      const JsonEncoder.withIndent('  ').convert(toMap(t));
 
   /// 从 JSON 字符串导入 Timetable
-  static Timetable fromJson(String json) => fromMap(jsonDecode(json) as Map<String, dynamic>);
+  static Timetable fromJson(String json) =>
+      fromMap(jsonDecode(json) as Map<String, dynamic>);
 
   // ===== 持久化便捷方法 =====
 
@@ -188,10 +211,14 @@ class FileService {
   /// 选择保存位置并导出课表为 JSON 文件。
   /// - suggestedName: 建议文件名（默认带 .json 后缀）
   /// - 返回：成功时返回保存路径；用户取消或不支持平台返回 null
-  static Future<String?> exportTimetable(Timetable t, {String? suggestedName}) async {
-    final String fileName = (suggestedName == null || suggestedName.trim().isEmpty)
-        ? 'YIClass_${t.name.isNotEmpty ? t.name : 'Timetable'}.json'
-        : (suggestedName.endsWith('.json') ? suggestedName : '$suggestedName.json');
+  static Future<String?> exportTimetable(Timetable t,
+      {String? suggestedName}) async {
+    final String fileName =
+        (suggestedName == null || suggestedName.trim().isEmpty)
+            ? 'YIClass_${t.name.isNotEmpty ? t.name : 'Timetable'}.json'
+            : (suggestedName.endsWith('.json')
+                ? suggestedName
+                : '$suggestedName.json');
 
     final String jsonText = toJson(t);
 
@@ -224,11 +251,16 @@ class FileService {
 
     // iOS：暂不支持
     if (Platform.isIOS) {
-      return null;
+      return await const MethodChannel('yiclass/ios')
+          .invokeMethod<String>('exportJson', {
+        'name': fileName,
+        'content': jsonText,
+      });
     }
 
     // 桌面端（Windows/macOS/Linux）：使用原生保存对话框
-    final FileSaveLocation? location = await getSaveLocation(suggestedName: fileName);
+    final FileSaveLocation? location =
+        await getSaveLocation(suggestedName: fileName);
     if (location == null) return null; // 用户取消
 
     final Uint8List bytes = Uint8List.fromList(utf8.encode(jsonText));
@@ -251,7 +283,8 @@ class FileService {
       uniformTypeIdentifiers: <String>['public.json'],
     );
 
-    final XFile? picked = await openFile(acceptedTypeGroups: <XTypeGroup>[jsonGroup]);
+    final XFile? picked =
+        await openFile(acceptedTypeGroups: <XTypeGroup>[jsonGroup]);
     if (picked == null) return null; // 用户取消
 
     return await SafeCall.async(() async {
@@ -262,10 +295,15 @@ class FileService {
 
   /// 通过文件选择器导入并保存到本地数据库。
   /// - 返回：保存成功返回 true；取消/失败返回 false
-  static Future<bool> importAndSave() async {
-    final Timetable? t = await importTimetable();
+  static Future<bool> importAndSave({required BuildContext context}) async {
+    Timetable? t = await importTimetable();
     if (t == null) return false;
-    return await save(t);
+    if (!context.mounted) return false;
+    t = await reviewImport(context, t);
+    if (t == null) return false;
+    final ok = await save(t);
+    if (ok)
+      await SettingsService.instance.setCurrentTimetableId(t.id.toString());
+    return ok;
   }
 }
-

@@ -5,9 +5,10 @@ import '../services/timetable/timetable_service.dart';
 import '../services/settings_service.dart';
 import '../services/timetable/factory_service.dart';
 import '../data/data_constants.dart';
+import '../services/ios_widget_service.dart';
 
 /// TimetableState
-/// 
+///
 /// - 负责管理 Timetable 列表与当前选中课表
 /// - 封装加载/刷新/设置默认/增删改等操作，并在完成后通知监听者
 class TimetableState extends ChangeNotifier {
@@ -44,10 +45,10 @@ class TimetableState extends ChangeNotifier {
   Future<void> reload() async {
     _loading = true;
     notifyListeners();
-    
+
     // 1. 获取所有课表
     _timetables = await _service.getAll();
-    
+
     // 2. 如果没有课表，自动创建默认课表并设置为当前课表
     if (_timetables.isEmpty) {
       final defaultTimetable = FactoryService.createTimetable(
@@ -55,15 +56,17 @@ class TimetableState extends ChangeNotifier {
       );
       await _service.put(defaultTimetable);
       _timetables = await _service.getAll();
-      
+
       // 设置为当前课表
       if (_timetables.isNotEmpty) {
         _current = _timetables.first;
-        await SettingsService.instance.setCurrentTimetableId(_current!.id.toString());
+        await SettingsService.instance
+            .setCurrentTimetableId(_current!.id.toString());
       }
     } else {
       // 3. 从全局设置获取当前课表ID
-      final currentIdStr = await SettingsService.instance.getCurrentTimetableId();
+      final currentIdStr =
+          await SettingsService.instance.getCurrentTimetableId();
       if (currentIdStr.isNotEmpty) {
         final currentId = int.tryParse(currentIdStr);
         if (currentId != null) {
@@ -73,34 +76,39 @@ class TimetableState extends ChangeNotifier {
           }
         }
       }
-      
+
       // 4. 如果当前课表不存在或无效，使用第一个课表并更新全局设置
       if (_current == null && _timetables.isNotEmpty) {
         _current = _timetables.first;
-        await SettingsService.instance.setCurrentTimetableId(_current!.id.toString());
+        await SettingsService.instance
+            .setCurrentTimetableId(_current!.id.toString());
       }
     }
-    
+
     _loading = false;
     notifyListeners();
+    await _syncWidget();
   }
 
   /// 设置当前课表（仅内存态）
   void setCurrent(Timetable? timetable) {
     _current = timetable;
     notifyListeners();
+    _syncWidget();
   }
 
   /// 根据 ID 设置当前课表，并刷新内存态
   Future<bool> setCurrentById(int id) async {
     // 更新全局设置
-    final ok = await SettingsService.instance.setCurrentTimetableId(id.toString());
+    final ok =
+        await SettingsService.instance.setCurrentTimetableId(id.toString());
     if (ok) {
       // 从数据库获取课表并更新内存态
       final timetable = await _service.getById(id);
       if (timetable != null) {
         _current = timetable;
         notifyListeners();
+        await _syncWidget();
       } else {
         // 如果ID无效，重新加载
         await reload();
@@ -138,5 +146,14 @@ class TimetableState extends ChangeNotifier {
     final count = await _service.deleteAll();
     await reload();
     return count;
+  }
+
+  Future<void> _syncWidget() async {
+    try {
+      await IOSWidgetService.sync(_current);
+    } catch (e) {
+      // A missing App Group must not hide a failed synchronization.
+      debugPrint('Widget synchronization failed: $e');
+    }
   }
 }

@@ -1,4 +1,7 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -11,6 +14,7 @@ import '../../components/layout/appbar.dart';
 import '../../components/inputs/components.dart';
 import '../../utils/safe_call.dart';
 import 'ai_edu_import_page.dart';
+import 'import_review_page.dart';
 
 class AIImportPage extends StatefulWidget {
   const AIImportPage({super.key});
@@ -34,6 +38,7 @@ class _AIImportPageState extends State<AIImportPage> {
     final config = await SafeCall.async<AIConfig?>(() async {
       return await AIConfigService.getConfig();
     });
+    if (!mounted) return;
     setState(() {
       _config = config;
       _isLoading = false;
@@ -73,9 +78,9 @@ class _AIImportPageState extends State<AIImportPage> {
         children: [
           // 导入选项列表
           _buildImportOptions(config),
-          
+
           const SizedBox(height: 24),
-          
+
           // 注意事项
           _buildPrivacyNotice(),
         ],
@@ -87,6 +92,14 @@ class _AIImportPageState extends State<AIImportPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) ...[
+          _buildImportOption(
+              title: 'PDF 课表',
+              subtitle: '选择含文字的 PDF，使用文本模型解析',
+              enabled: config.enabled && config.isTextValid,
+              onTap: _handlePdfImport),
+          const SizedBox(height: 12),
+        ],
         Text(
           '选择导入方式',
           style: const TextStyle(
@@ -140,7 +153,9 @@ class _AIImportPageState extends State<AIImportPage> {
           color: enabled ? Colors.white : Colors.grey.shade100,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: enabled ? Colors.black.withValues(alpha: 0.2) : Colors.grey.shade300,
+            color: enabled
+                ? Colors.black.withValues(alpha: 0.2)
+                : Colors.grey.shade300,
             width: 1,
           ),
         ),
@@ -218,16 +233,42 @@ class _AIImportPageState extends State<AIImportPage> {
 
   // ================= 导入逻辑 =================
 
+  Future<void> _handlePdfImport() async {
+    try {
+      final file = await openFile(acceptedTypeGroups: [
+        const XTypeGroup(
+            label: 'PDF',
+            extensions: ['pdf'],
+            uniformTypeIdentifiers: ['com.adobe.pdf'])
+      ]);
+      if (file == null) return;
+      if (await file.length() > 20 * 1024 * 1024)
+        throw const FormatException('PDF 请小于 20 MB');
+      final text = await const MethodChannel('yiclass/ios')
+          .invokeMethod<String>('readPdf', {'path': file.path});
+      if (text == null || text.length > 100000)
+        throw const FormatException('PDF 内容为空或过长');
+      if (!mounted) return;
+      await _handleAIImport(
+          context: context,
+          importType: 'PDF',
+          analyzer: () => AIService.analyzeText(text));
+    } catch (e) {
+      if (mounted) Notifications.sonner(context, message: '$e');
+    }
+  }
+
   Future<void> _handleImageImport() async {
     final config = await AIConfigService.getConfig();
     if (!mounted) return;
-    if (!_checkConfig(context, config.enabled && config.enableImageImport, '图片导入')) return;
+    if (!_checkConfig(
+        context, config.enabled && config.enableImageImport, '图片导入')) return;
 
     final XFile? image = await _picker.pickImage(
       source: ImageSource.gallery,
-      maxWidth: 1920,
-      maxHeight: 1080,
-      imageQuality: 85,
+      maxWidth: 3200,
+      maxHeight: 3200,
+      imageQuality: 95,
     );
     if (image == null) return;
 
@@ -245,7 +286,8 @@ class _AIImportPageState extends State<AIImportPage> {
   Future<void> _handleTableImport() async {
     final config = await AIConfigService.getConfig();
     if (!mounted) return;
-    if (!_checkConfig(context, config.enabled && config.enableTableImport, '表格导入')) return;
+    if (!_checkConfig(
+        context, config.enabled && config.enableTableImport, '表格导入')) return;
 
     final tableText = await _showTableInputDialog(context);
     if (tableText == null || tableText.isEmpty) return;
@@ -261,7 +303,8 @@ class _AIImportPageState extends State<AIImportPage> {
   Future<void> _handleTextImport() async {
     final config = await AIConfigService.getConfig();
     if (!mounted) return;
-    if (!_checkConfig(context, config.enabled && config.enableTextImport, '文字导入')) return;
+    if (!_checkConfig(
+        context, config.enabled && config.enableTextImport, '文字导入')) return;
 
     final text = await _showTextInputDialog(context);
     if (text == null || text.isEmpty) return;
@@ -277,7 +320,8 @@ class _AIImportPageState extends State<AIImportPage> {
   Future<void> _handleWebImport() async {
     final config = await AIConfigService.getConfig();
     if (!mounted) return;
-    if (!_checkConfig(context, config.enabled && config.enableWebImport, 'AI 教务导入')) return;
+    if (!_checkConfig(
+        context, config.enabled && config.enableWebImport, 'AI 教务导入')) return;
 
     // 跳转到 AI 教务导入页面
     Navigator.push(
@@ -299,31 +343,37 @@ class _AIImportPageState extends State<AIImportPage> {
 
     if (!context.mounted) return;
     _showProcessingDialog(context, '正在分析$importType...');
+    bool processing = true;
 
     try {
       final timetableData = await analyzer();
 
       if (!context.mounted) return;
       Navigator.pop(context); // 关闭"分析中"
+      processing = false;
 
       Notifications.sonner(context, message: '导入中...');
       await Future.delayed(const Duration(milliseconds: 300));
+      if (!context.mounted) return;
 
       // AI 直接返回格式，直接使用
-      final timetable = FileService.fromMap(timetableData);
-      
+      final timetable =
+          await reviewImport(context, FileService.fromMap(timetableData));
+      if (timetable == null || !context.mounted) return;
+
       // 保存到数据库
       final result = await FileService.save(timetable);
-      
+
       if (!context.mounted) return;
       if (result) {
         // 刷新课表状态
         final timetableState = context.read<TimetableState>();
         await timetableState.reload();
-        
+        await timetableState.setCurrentById(timetable.id);
+
         if (!context.mounted) return;
         Notifications.sonner(context, message: '导入成功');
-        
+
         // 导入成功后返回上一页
         Navigator.pop(context);
       } else {
@@ -331,7 +381,7 @@ class _AIImportPageState extends State<AIImportPage> {
       }
     } catch (e) {
       if (context.mounted) {
-        Navigator.pop(context);
+        if (processing) Navigator.pop(context);
         Notifications.sonner(context, message: '分析失败: $e');
       }
     }
@@ -421,7 +471,8 @@ class _AIImportPageState extends State<AIImportPage> {
                 controller: controller,
                 maxLines: 8,
                 decoration: const InputDecoration(
-                  hintText: '例如：\n周一上午有高等数学课，在A101教室，老师是张老师\n周二下午有英语课，在B201教室，老师是李老师',
+                  hintText:
+                      '例如：\n周一上午有高等数学课，在A101教室，老师是张老师\n周二下午有英语课，在B201教室，老师是李老师',
                   border: OutlineInputBorder(),
                 ),
               ),

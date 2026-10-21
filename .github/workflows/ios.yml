@@ -1,0 +1,73 @@
+name: iOS unsigned app with WidgetKit
+on:
+  push:
+    branches: [main, 'feat/**']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      bundle_id:
+        description: Main app bundle identifier
+        default: com.ddyec.yiclass
+        required: true
+      app_group:
+        description: Shared App Group (empty uses group.bundle_id)
+        default: ''
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.5'
+          cache: true
+      - run: flutter pub get
+      - run: dart analyze lib/services/ai lib/views/ai/planning_page.dart lib/views/ai/import_review_page.dart lib/services/ios_widget_service.dart test
+      - run: flutter test
+  build:
+    needs: verify
+    runs-on: macos-15
+    env:
+      BUNDLE_ID: ${{ inputs.bundle_id || 'com.ddyec.yiclass' }}
+      APP_GROUP_INPUT: ${{ inputs.app_group }}
+      APP_VERSION: 2.4.0
+      BUILD_NUMBER: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.5'
+          cache: true
+      - run: flutter pub get
+      - name: Add embedded WidgetKit target and signing entitlements
+        run: |
+          export APP_GROUP="${APP_GROUP_INPUT:-group.$BUNDLE_ID}"
+          ruby scripts/configure_ios.rb
+          ruby scripts/configure_ios.rb
+          plutil -lint ios/Runner/Info.plist ios/ScheduleWidget/Info.plist
+      - run: flutter build ios --release --no-codesign --build-name "$APP_VERSION" --build-number "$BUILD_NUMBER"
+      - name: Verify extension and package unsigned IPA
+        run: |
+          python3 scripts/verify_ios_bundle.py build/ios/iphoneos/Runner.app
+          mkdir -p build/unsigned/Payload
+          cp -R build/ios/iphoneos/Runner.app build/unsigned/Payload/
+          cp docs/IOS-SIGNING.md build/unsigned/
+          cd build/unsigned
+          /usr/bin/zip -qry ../YIClass-unsigned.ipa Payload
+          rm -rf Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: YIClass-iOS-unsigned-with-widget
+          path: |
+            build/YIClass-unsigned.ipa
+            docs/IOS-SIGNING.md
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: iOS-build-diagnostics
+          path: |
+            ios/Runner.xcodeproj/project.pbxproj
+            ios/Podfile.lock

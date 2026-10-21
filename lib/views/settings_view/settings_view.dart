@@ -15,6 +15,10 @@ import '../../routes/route_utils.dart';
 import '../../components/feedback/dialogs.dart';
 import '../../components/layout/appbar.dart';
 import '../../components/inputs/segmented_control.dart';
+import '../ai/planning_page.dart';
+import '../ai/ai_config_page.dart';
+import '../../services/ios_widget_service.dart';
+import 'package:flutter/foundation.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -23,7 +27,8 @@ class SettingsPage extends StatefulWidget {
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClientMixin {
+class _SettingsPageState extends State<SettingsPage>
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
@@ -42,7 +47,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
 
   void _initializeLocalState() {
     final timetableState = Provider.of<TimetableState>(context, listen: false);
-    
+
     final timetable = timetableState.current;
     if (timetable != null && !_isInitialized) {
       setState(() {
@@ -56,16 +61,16 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
   @override
   Widget build(BuildContext context) {
     super.build(context); // 必须调用以支持 AutomaticKeepAliveClientMixin
-    
+
     final timetableState = Provider.of<TimetableState>(context, listen: false);
     final viewState = Provider.of<ViewState>(context, listen: false);
-    
+
     final timetable = timetableState.current;
     if (timetable == null) return const SizedBox();
 
     final selectedView = viewState.selectedView;
     final showWeekend = timetable.settings.showWeekend;
-    
+
     // 统一使用局部状态，避免混乱
     final totalWeeks = _localTotalWeeks;
 
@@ -79,26 +84,41 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       ),
       backgroundColor: const Color(0xFFF7F7F7),
       body: ListView(
-        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 80),
+        padding:
+            const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 80),
         children: [
           // 基础功能分区
           SettingsBlock(
             title: '基础功能',
             children: [
-              _buildViewModeTile(selectedView, viewState, timetable, timetableState),
+              _buildViewModeTile(
+                  selectedView, viewState, timetable, timetableState),
               _buildStartDateTile(),
               _buildTotalWeeksTile(timetable, totalWeeks, timetableState),
-              _buildShowWeekendTile(showWeekend, viewState, timetable, timetableState),
+              _buildShowWeekendTile(
+                  showWeekend, viewState, timetable, timetableState),
               _buildTimeSettingsTile(),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // 课表管理分区
           SettingsBlock(
             title: '课表管理',
             children: [
+              SettingsItem.text(
+                  title: 'AI 排课助手',
+                  description: '排课、调课、调休与紧急安排',
+                  showArrow: true,
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const PlanningPage()))),
+              SettingsItem.text(
+                  title: 'AI 接口配置',
+                  description: '配置自己的 API 端点和模型',
+                  showArrow: true,
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const AIConfigPage()))),
               _buildImportTimetableTile(),
               _buildEduSystemImportTile(),
               _buildAiImportTile(),
@@ -106,9 +126,9 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
               _buildTimetableManagementTile(),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // 扩展功能分区
           SettingsBlock(
             title: '扩展功能',
@@ -119,9 +139,9 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
               _buildWidgetSettingsTile(),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // 关于我们分区
           SettingsBlock(
             title: '关于我们',
@@ -131,7 +151,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
               _buildPrivacyPolicyTile(),
             ],
           ),
-          
+
           const SizedBox(height: 16),
         ],
       ),
@@ -139,7 +159,8 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
   }
 
   /// 构建视图模式设置
-  Widget _buildViewModeTile(String selectedView, ViewState viewState, Timetable timetable, TimetableState timetableState) {
+  Widget _buildViewModeTile(String selectedView, ViewState viewState,
+      Timetable timetable, TimetableState timetableState) {
     // 在设置页面时，锁定显示为"周视图"，避免重复计算滑块位置
     // 这样可以减少不必要的UI计算，提升性能
     const lockedView = '周视图';
@@ -173,7 +194,8 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     final timetable = timetableState.current;
     if (timetable == null) return const SizedBox();
 
-    final dateStr = DateFormat('yyyy-MM-dd').format(timetable.settings.startDate);
+    final dateStr =
+        DateFormat('yyyy-MM-dd').format(timetable.settings.startDate);
 
     return SettingsItem.value(
       title: '开始上课日期',
@@ -181,7 +203,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       showArrow: true,
       onTap: () async {
         final currentDate = timetable.settings.startDate;
-        
+
         final picked = await YicoreDatePicker.show(
           context: context,
           initialDate: currentDate,
@@ -193,31 +215,34 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
           try {
             timetable.settings.startDate = picked;
             await timetableState.put(timetable);
-            
+
             if (mounted) {
-              Notifications.sonner(context, message: '开始日期已设置为 ${DateFormat('yyyy-MM-dd').format(picked)}');
+              Notifications.sonner(context,
+                  message:
+                      '开始日期已设置为 ${DateFormat('yyyy-MM-dd').format(picked)}');
               setState(() {}); // 刷新显示
             }
           } catch (e) {
             if (mounted) {
-              Notifications.sonner(context, title: '保存失败', message: e.toString());
+              Notifications.sonner(context,
+                  title: '保存失败', message: e.toString());
             }
           }
         }
       },
     );
   }
-  
+
   String _formatDateRange(DateTime startDate, int weeks) {
     final firstWeek = DateFormat('MM/dd').format(startDate);
-    final lastWeek = DateFormat('MM/dd').format(
-      startDate.add(Duration(days: 7 * (weeks - 1)))
-    );
+    final lastWeek = DateFormat('MM/dd')
+        .format(startDate.add(Duration(days: 7 * (weeks - 1))));
     return '$firstWeek - $lastWeek';
   }
 
   /// 构建总周数设置
-  Widget _buildTotalWeeksTile(Timetable timetable, int totalWeeks, TimetableState timetableState) {
+  Widget _buildTotalWeeksTile(
+      Timetable timetable, int totalWeeks, TimetableState timetableState) {
     return SettingsItem.slider(
       title: '总周数 ($totalWeeks周)',
       description: _formatDateRange(timetable.settings.startDate, totalWeeks),
@@ -228,7 +253,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         setState(() {
           _localTotalWeeks = value.round();
         });
-        
+
         // 延迟保存以避免频繁写入
         Future.delayed(const Duration(milliseconds: 500), () async {
           if (mounted && _localTotalWeeks == value.round()) {
@@ -241,7 +266,8 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
   }
 
   /// 构建显示周末设置
-  Widget _buildShowWeekendTile(bool showWeekend, ViewState viewState, Timetable timetable, TimetableState timetableState) {
+  Widget _buildShowWeekendTile(bool showWeekend, ViewState viewState,
+      Timetable timetable, TimetableState timetableState) {
     return SettingsItem.switch_(
       title: '显示周末',
       description: '在课程表中显示周六和周日',
@@ -253,7 +279,6 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       },
     );
   }
-
 
   /// 构建时间设置
   Widget _buildTimeSettingsTile() {
@@ -302,10 +327,11 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       description: '从JSON文件导入课表数据',
       showArrow: true,
       onTap: () async {
-        final ok = await FileService.importAndSave();
+        final ok = await FileService.importAndSave(context: context);
         if (!mounted) return;
         if (ok) {
-          final timetableState = Provider.of<TimetableState>(context, listen: false);
+          final timetableState =
+              Provider.of<TimetableState>(context, listen: false);
           await timetableState.reload();
           if (!mounted) return;
           Notifications.sonner(context, message: '导入成功');
@@ -328,9 +354,9 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         final advancedEnabled = results[0];
         final eduEnabled = results[1];
         final visible = advancedEnabled && eduEnabled;
-        
+
         if (!visible) return const SizedBox.shrink();
-        
+
         return SettingsItem.text(
           title: '教务系统导入',
           description: '从学校教务系统导入课表',
@@ -355,9 +381,9 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
         final advancedEnabled = results[0];
         final aiEnabled = results[1];
         final visible = advancedEnabled && aiEnabled;
-        
+
         if (!visible) return const SizedBox.shrink();
-        
+
         return SettingsItem.text(
           title: 'AI 智能导入',
           description: '使用 AI 识别图片或文档中的课表',
@@ -377,7 +403,8 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       description: '将课表数据导出为JSON文件',
       showArrow: true,
       onTap: () async {
-        final timetableState = Provider.of<TimetableState>(context, listen: false);
+        final timetableState =
+            Provider.of<TimetableState>(context, listen: false);
         final timetable = timetableState.current;
         if (timetable == null) {
           Notifications.sonner(context, message: '请先选择一个课表');
@@ -393,7 +420,6 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       },
     );
   }
-
 
   // ==================== 扩展功能分区 ====================
 
@@ -427,8 +453,25 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       title: '桌面小组件',
       description: '在主屏幕显示课程信息',
       showArrow: true,
-      onTap: () {
-        _showComingSoonDialog('桌面小组件功能');
+      onTap: () async {
+        String status = '';
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+          try {
+            await IOSWidgetService.sync(context.read<TimetableState>().current);
+            final info = await IOSWidgetService.channel
+                .invokeMapMethod<String, dynamic>('widgetStatus');
+            status = info?['available'] == true
+                ? '\n共享课表已同步。'
+                : '\n签名缺少共享 App Group。';
+          } catch (e) {
+            status = '\n同步失败：$e';
+          }
+        }
+        if (!mounted) return;
+        YicoreAlert.show(context,
+            title: '主屏幕小组件',
+            message:
+                'iPhone 主屏幕长按空白处 → 编辑 → 添加小组件 → YIClass。\n支持小号和中号，显示下节课与今日安排。\n课表修改后自动同步；系统决定实际刷新时机。签名需包含小组件扩展及相同 App Group。$status');
       },
     );
   }
@@ -441,10 +484,11 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       future: SettingsService.instance.isAdvancedFeaturesEnabled(),
       builder: (context, snapshot) {
         final advancedEnabled = snapshot.data ?? false;
-        
+
         return SettingsItem.text(
           title: '高级功能',
-          description: advancedEnabled ? '已启用 AI 导入、教务脚本等' : '启用后可使用 AI 导入、教务脚本等功能',
+          description:
+              advancedEnabled ? '已启用 AI 导入、教务脚本等' : '启用后可使用 AI 导入、教务脚本等功能',
           showArrow: true,
           onTap: () {
             RouteUtils.pushAdvancedFeatures(context).then((_) {
@@ -464,7 +508,7 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
     return SettingsItem.value(
       title: '关于应用',
       description: '版本信息和应用详情',
-      value: 'v2.3.6',
+      value: 'v2.4.0',
       showArrow: true,
       onTap: () {
         RouteUtils.pushAbout(context);
@@ -493,15 +537,6 @@ class _SettingsPageState extends State<SettingsPage> with AutomaticKeepAliveClie
       onTap: () {
         RouteUtils.pushLicense(context);
       },
-    );
-  }
-
-  /// 显示即将推出对话框
-  void _showComingSoonDialog(String featureName) {
-    YicoreAlert.show(
-      context,
-      title: '功能开发中',
-      message: '$featureName 正在开发中，敬请期待！',
     );
   }
 }

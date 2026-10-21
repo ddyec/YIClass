@@ -19,7 +19,7 @@ class _AIConfigPageState extends State<AIConfigPage> {
   final _endpointController = TextEditingController();
   final _visionModelController = TextEditingController();
   final _textModelController = TextEditingController();
-  
+
   bool _enableImageImport = true;
   bool _enableTableImport = true;
   bool _enableTextImport = true;
@@ -44,7 +44,7 @@ class _AIConfigPageState extends State<AIConfigPage> {
 
   Future<void> _loadConfig() async {
     setState(() => _isLoading = true);
-    
+
     try {
       final config = await AIConfigService.getConfig();
       _apiKeyController.text = config.apiKey;
@@ -121,13 +121,10 @@ class _AIConfigPageState extends State<AIConfigPage> {
         enableTableImport: _enableTableImport,
         enableTextImport: _enableTextImport,
       );
-      
-      // 临时保存配置用于测试
-      await AIConfigService.saveConfig(tempConfig);
-      
+
       // 测试配置
-      final success = await AIService.testConfig();
-      
+      final success = await AIService.testConfig(configuration: tempConfig);
+
       if (!mounted) return;
       if (success) {
         Notifications.sonner(context, message: '配置测试成功');
@@ -141,7 +138,6 @@ class _AIConfigPageState extends State<AIConfigPage> {
       if (mounted) setState(() => _isTesting = false);
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -168,7 +164,8 @@ class _AIConfigPageState extends State<AIConfigPage> {
                   title: '基础配置',
                   children: [
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 8),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -196,7 +193,8 @@ class _AIConfigPageState extends State<AIConfigPage> {
                               ),
                               filled: true,
                               fillColor: Colors.white,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 12),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                                 borderSide: BorderSide(
@@ -224,7 +222,8 @@ class _AIConfigPageState extends State<AIConfigPage> {
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 8),
                       child: YicoreTextField(
                         labelText: '接口地址',
                         controller: _endpointController,
@@ -232,7 +231,8 @@ class _AIConfigPageState extends State<AIConfigPage> {
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 8),
                       child: YicoreTextField(
                         labelText: '视觉模型',
                         controller: _visionModelController,
@@ -240,7 +240,8 @@ class _AIConfigPageState extends State<AIConfigPage> {
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 8),
                       child: YicoreTextField(
                         labelText: '文本模型',
                         controller: _textModelController,
@@ -260,28 +261,32 @@ class _AIConfigPageState extends State<AIConfigPage> {
                       title: '图片导入',
                       description: '支持课程表图片识别',
                       value: _enableImageImport,
-                      onChanged: (value) => setState(() => _enableImageImport = value),
+                      onChanged: (value) =>
+                          setState(() => _enableImageImport = value),
                       inBlock: true,
                     ),
                     SettingsItem.switch_(
                       title: '表格导入',
                       description: '支持表格数据解析',
                       value: _enableTableImport,
-                      onChanged: (value) => setState(() => _enableTableImport = value),
+                      onChanged: (value) =>
+                          setState(() => _enableTableImport = value),
                       inBlock: true,
                     ),
                     SettingsItem.switch_(
                       title: '文字导入',
                       description: '支持文字描述解析',
                       value: _enableTextImport,
-                      onChanged: (value) => setState(() => _enableTextImport = value),
+                      onChanged: (value) =>
+                          setState(() => _enableTextImport = value),
                       inBlock: true,
                     ),
                     SettingsItem.switch_(
                       title: 'AI 教务导入',
                       description: '支持教务网页 AI 分析导入',
                       value: _enableWebImport,
-                      onChanged: (value) => setState(() => _enableWebImport = value),
+                      onChanged: (value) =>
+                          setState(() => _enableWebImport = value),
                       inBlock: true,
                     ),
                   ],
@@ -313,16 +318,6 @@ class _AIConfigPageState extends State<AIConfigPage> {
                             text: 'OpenAI',
                             isOutlined: true,
                             onPressed: () => _setPreset('openai'),
-                          ),
-                          YicoreButton(
-                            text: 'Claude',
-                            isOutlined: true,
-                            onPressed: () => _setPreset('claude'),
-                          ),
-                          YicoreButton(
-                            text: 'Gemini',
-                            isOutlined: true,
-                            onPressed: () => _setPreset('gemini'),
                           ),
                           YicoreButton(
                             text: 'DeepSeek',
@@ -364,13 +359,13 @@ class _AIConfigPageState extends State<AIConfigPage> {
     );
   }
 
-
   void _setPreset(String provider) {
     final preset = AIConfig.getPresetConfig(provider);
     setState(() {
       _endpointController.text = preset.endpoint;
       _visionModelController.text = preset.visionModel;
       _textModelController.text = preset.textModel;
+      if (provider == 'deepseek') _enableImageImport = false;
     });
   }
 }

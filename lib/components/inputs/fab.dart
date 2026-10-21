@@ -350,7 +350,7 @@ class AddCourseFab extends StatelessWidget {
 
   Future<void> _importFromFile(BuildContext context) async {
     final timetableState = Provider.of<TimetableState>(context, listen: false);
-    final ok = await FileService.importAndSave();
+    final ok = await FileService.importAndSave(context: context);
     if (!context.mounted) return;
     if (ok) {
       await timetableState.reload();

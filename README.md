@@ -2,7 +2,19 @@
 
 一个功能完善的跨平台课表应用，支持多种视图模式、AI智能导入、文件导入导出，界面美观，操作流畅。
 
-**当前版本**: v2.3.5
+**当前版本**: v2.4.0
+
+## Fork 新增功能
+
+- **AI 排课助手**：使用用户配置的 OpenAI Chat Completions 兼容 API（已实测 DeepSeek），提出排课、局部调课、指定课次取消、调休补课和紧急事件安排。先预览、校验冲突，再确认应用；当前页面可撤销上次方案。时间需能对应用户设置的节次。
+- **导入复核**：导入前核对第 1 周周一、周次、教室及每节作息；修改开始时间时默认课长 45 分钟。导入总是新建课表，避免覆盖已有数据；完整保留作息时间。
+- **iOS PDF 导入**：通过 PDFKit 读取含文字的 PDF，再由文本模型抽取；扫描 PDF 使用图片和视觉模型。DeepSeek 文本模型不能识别图片。
+- **iOS 主屏幕小组件**：小号/中号 WidgetKit 扩展，展示正在上课或下节课、时间、地点与后续安排。共享整学期快照并预生成跨日时间线。iOS 15+，需要包含 App Group 的有效签名。
+- **iOS 文件导出**：通过系统分享面板保存 JSON 到“文件”。
+- **Actions**：运行测试、构建未签名 IPA，并校验实际嵌入的小组件扩展和共享配置。支持自定义 Bundle ID / App Group。
+
+签名与小组件安装条件见 [iOS 签名说明](docs/IOS-SIGNING.md)。源码构建前需执行 `ruby scripts/configure_ios.rb` 创建并嵌入 WidgetKit target。
+自动化测试不能代替用户签名后的真机小组件安装验收。
 
 ##  核心功能
 
@@ -22,7 +34,7 @@
 - **AI图片识别**：上传课程表图片，自动识别课程信息
 - **AI表格解析**：解析CSV/Excel格式的课程表
 - **AI文字识别**：从自然语言描述中提取课程数据
-- **多AI服务支持**：OpenAI、Claude、Gemini、DeepSeek
+- **兼容 API**：OpenAI Chat Completions 格式的服务，包括 DeepSeek；原生 Claude/Gemini 协议未适配
 - **文件导入/导出**：支持JSON格式导入导出课表数据
 
 ### 其他功能
@@ -39,10 +51,10 @@ TODO: 添加应用截图
 ##  快速开始
 
 ### 运行要求
-- Flutter 3.5.0+
-- Dart 3.5.0+
+- Flutter 3.38.5（Actions 固定版本）
+- Dart 3.10+
 - Android SDK 21+ (Android)
-- iOS 12+ (iOS)
+- iOS 15+ (iOS)
 - Windows 10+ / macOS 10.14+ / Linux (桌面端)
 
 ### 安装步骤
