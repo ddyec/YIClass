@@ -9,6 +9,11 @@ abort 'Invalid bundle ID' unless bundle_id.match?(/\A[A-Za-z0-9-]+(?:\.[A-Za-z0-
 abort 'Invalid App Group' unless group_id.match?(/\Agroup\.[A-Za-z0-9.-]+\z/)
 project = Xcodeproj::Project.open('ios/Runner.xcodeproj')
 runner = project.targets.find { |t| t.name == 'Runner' }
+runner_group = project.main_group.groups.find { |g| g.path == 'Runner' }
+pdf_file = runner_group.files.find { |f| f.path == 'PdfTimetableReader.swift' } || runner_group.new_file('PdfTimetableReader.swift')
+unless runner.source_build_phase.files_references.include?(pdf_file)
+  runner.source_build_phase.add_file_reference(pdf_file)
+end
 widget = project.targets.find { |t| t.name == 'ScheduleWidget' }
 unless widget
   widget = project.new_target(:app_extension, 'ScheduleWidget', :ios, '15.0')

@@ -48,10 +48,7 @@ class _AIImportPageState extends State<AIImportPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: YicoreAppBar(
-        title: 'AI智能导入',
-        centerTitle: true,
-      ),
+      appBar: YicoreAppBar(title: 'AI智能导入', centerTitle: true),
       backgroundColor: const Color(0xFFF7F7F7),
       body: _isLoading
           ? const Center(
@@ -94,18 +91,16 @@ class _AIImportPageState extends State<AIImportPage> {
       children: [
         if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) ...[
           _buildImportOption(
-              title: 'PDF 课表',
-              subtitle: '选择含文字的 PDF，使用文本模型解析',
-              enabled: config.enabled && config.isTextValid,
-              onTap: _handlePdfImport),
+            title: 'PDF 课表',
+            subtitle: '选择含文字的 PDF，使用文本模型解析',
+            enabled: config.enabled && config.isTextValid,
+            onTap: _handlePdfImport,
+          ),
           const SizedBox(height: 12),
         ],
         Text(
           '选择导入方式',
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
         _buildImportOption(
@@ -235,26 +230,39 @@ class _AIImportPageState extends State<AIImportPage> {
 
   Future<void> _handlePdfImport() async {
     try {
-      final file = await openFile(acceptedTypeGroups: [
-        const XTypeGroup(
+      final file = await openFile(
+        acceptedTypeGroups: [
+          const XTypeGroup(
             label: 'PDF',
             extensions: ['pdf'],
-            uniformTypeIdentifiers: ['com.adobe.pdf'])
-      ]);
+            uniformTypeIdentifiers: ['com.adobe.pdf'],
+          ),
+        ],
+      );
       if (file == null) return;
       if (await file.length() > 20 * 1024 * 1024) {
         throw const FormatException('PDF 请小于 20 MB');
       }
-      final text = await const MethodChannel('yiclass/ios')
-          .invokeMethod<String>('readPdf', {'path': file.path});
+      final text = await const MethodChannel(
+        'yiclass/ios',
+      ).invokeMethod<String>('readPdf', {'path': file.path});
       if (text == null || text.length > 100000) {
         throw const FormatException('PDF 内容为空或过长');
       }
       if (!mounted) return;
       await _handleAIImport(
-          context: context,
-          importType: 'PDF',
-          analyzer: () => AIService.analyzePdf(text));
+        context: context,
+        importType: 'PDF',
+        analyzer: () => AIService.analyzePdf(
+          text,
+          renderPages: () async {
+            final pages = await const MethodChannel(
+              'yiclass/ios',
+            ).invokeListMethod<String>('renderPdf', {'path': file.path});
+            return pages ?? <String>[];
+          },
+        ),
+      );
     } catch (e) {
       if (mounted) Notifications.sonner(context, message: '$e');
     }
@@ -264,7 +272,10 @@ class _AIImportPageState extends State<AIImportPage> {
     final config = await AIConfigService.getConfig();
     if (!mounted) return;
     if (!_checkConfig(
-        context, config.enabled && config.enableImageImport, '图片导入')) {
+      context,
+      config.enabled && config.enableImageImport,
+      '图片导入',
+    )) {
       return;
     }
 
@@ -291,7 +302,10 @@ class _AIImportPageState extends State<AIImportPage> {
     final config = await AIConfigService.getConfig();
     if (!mounted) return;
     if (!_checkConfig(
-        context, config.enabled && config.enableTableImport, '表格导入')) {
+      context,
+      config.enabled && config.enableTableImport,
+      '表格导入',
+    )) {
       return;
     }
 
@@ -310,7 +324,10 @@ class _AIImportPageState extends State<AIImportPage> {
     final config = await AIConfigService.getConfig();
     if (!mounted) return;
     if (!_checkConfig(
-        context, config.enabled && config.enableTextImport, '文字导入')) {
+      context,
+      config.enabled && config.enableTextImport,
+      '文字导入',
+    )) {
       return;
     }
 
@@ -329,16 +346,17 @@ class _AIImportPageState extends State<AIImportPage> {
     final config = await AIConfigService.getConfig();
     if (!mounted) return;
     if (!_checkConfig(
-        context, config.enabled && config.enableWebImport, 'AI 教务导入')) {
+      context,
+      config.enabled && config.enableWebImport,
+      'AI 教务导入',
+    )) {
       return;
     }
 
     // 跳转到 AI 教务导入页面
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const AiEduImportPage(),
-      ),
+      MaterialPageRoute(builder: (context) => const AiEduImportPage()),
     );
   }
 
@@ -367,8 +385,10 @@ class _AIImportPageState extends State<AIImportPage> {
       if (!context.mounted) return;
 
       // AI 直接返回格式，直接使用
-      final timetable =
-          await reviewImport(context, FileService.fromMap(timetableData));
+      final timetable = await reviewImport(
+        context,
+        FileService.fromMap(timetableData),
+      );
       if (timetable == null || !context.mounted) return;
 
       // 保存到数据库

@@ -36,6 +36,10 @@ jobs:
       BUILD_NUMBER: ${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
+      - name: Verify PDF weekday extraction including rotated pages
+        run: |
+          swiftc ios/Runner/PdfTimetableReader.swift scripts/tests/pdf_reader/main.swift -o "$RUNNER_TEMP/pdf-reader-test"
+          "$RUNNER_TEMP/pdf-reader-test"
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.38.5'

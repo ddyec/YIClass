@@ -41,19 +41,34 @@ class AIService {
   }
 
   /// The weekday comes from PDF geometry, never from model reading order.
-  static Future<Map<String, dynamic>> analyzePdf(String text,
-      {AIConfig? configuration}) async {
+  static Future<Map<String, dynamic>> analyzePdf(
+    String text, {
+    AIConfig? configuration,
+    Future<List<String>> Function()? renderPages,
+  }) async {
     text = text.replaceAll('\r\n', '\n');
     final config = configuration ?? await AIConfigService.getConfig();
     if (!config.enabled || !config.isTextValid) {
       throw const FormatException('请先配置 AI 接口');
     }
     final pattern = RegExp(
-        r'\[YICLASS_COLUMN weekday=([1-7])\]\n([\s\S]*?)\n\[/YICLASS_COLUMN\]');
+      r'\[YICLASS_COLUMN weekday=([1-7])\]\n([\s\S]*?)\n\[/YICLASS_COLUMN\]',
+    );
     final columns = pattern.allMatches(text).toList();
     if (columns.isEmpty) {
-      if (RegExp(r'星期[一二三四五六日]').allMatches(text).length >= 4) {
-        throw const FormatException('无法可靠分隔 PDF 星期列，请改用清晰图片或按星期粘贴文字');
+      if (text.trim().isEmpty ||
+          RegExp(r'(?:星期|周)\s*[一二三四五六日天⼀⼆⽇]').allMatches(text).length >= 4) {
+        if (renderPages == null || !config.isVisionValid) {
+          throw const FormatException('此 PDF 需要视觉识别，请在 AI 设置中配置视觉模型后重试');
+        }
+        final pages = await renderPages();
+        if (pages.isEmpty) throw const FormatException('PDF 没有可读取的页面');
+        return _callVisionAPI(
+          config,
+          pages.first,
+          '${_getImagePrompt()}\n这些图片是同一份 PDF 的连续页面。按可见星期列识别；续页沿用前页列标题，合并跨页课程内容。保留表外未排课课程。',
+          pages: pages,
+        );
       }
       return _callTextAPI(config, _getTextPrompt(text));
     }
@@ -62,8 +77,10 @@ class AIService {
       final content = column.group(2)!;
       if (content.trim().isEmpty) continue;
       final day = int.parse(column.group(1)!);
-      final result = await _callTextAPI(config,
-          '${_getTextPrompt(content)}\n这是已按 PDF 坐标切分的星期$day单列。所有有节次的课程 weekday 必须为 $day。严格读取每项括号内节次和周次，不能参考相邻课程推断。');
+      final result = await _callTextAPI(
+        config,
+        '${_getTextPrompt(content)}\n这是已按 PDF 坐标切分的星期$day单列。所有有节次的课程 weekday 必须为 $day。严格读取每项括号内节次和周次，不能参考相邻课程推断。',
+      );
       for (final course in result['courses']) {
         for (final schedule in course['schedules']) {
           schedule['weekday'] = day;
@@ -72,8 +89,10 @@ class AIService {
       }
     }
     // Preserve outside-table notes without letting them redefine weekday columns.
-    final notes =
-        text.replaceAll(pattern, '').replaceAll('---分页---', '').trim();
+    final notes = text
+        .replaceAll(pattern, '')
+        .replaceAll('---分页---', '')
+        .trim();
     if (notes.isNotEmpty) {
       final extra = await _callTextAPI(config, _getTextPrompt(notes));
       courses.addAll(extra['courses']);
@@ -104,7 +123,11 @@ class AIService {
 
   /// 调用视觉API
   static Future<Map<String, dynamic>> _callVisionAPI(
-      AIConfig config, String imageBase64, String prompt) async {
+    AIConfig config,
+    String imageBase64,
+    String prompt, {
+    List<String>? pages,
+  }) async {
     final requestBody = {
       "model": config.visionModel,
       "messages": [
@@ -112,12 +135,13 @@ class AIService {
           "role": "user",
           "content": [
             {"type": "text", "text": prompt},
-            {
-              "type": "image_url",
-              "image_url": {"url": "data:image/jpeg;base64,$imageBase64"}
-            }
-          ]
-        }
+            for (final image in pages ?? [imageBase64])
+              {
+                "type": "image_url",
+                "image_url": {"url": "data:image/jpeg;base64,$image"},
+              },
+          ],
+        },
       ],
       "max_tokens": 4000,
       "temperature": 0.1,
@@ -129,11 +153,13 @@ class AIService {
 
   /// 调用文本API
   static Future<Map<String, dynamic>> _callTextAPI(
-      AIConfig config, String prompt) async {
+    AIConfig config,
+    String prompt,
+  ) async {
     final requestBody = {
       "model": config.textModel,
       "messages": [
-        {"role": "user", "content": prompt}
+        {"role": "user", "content": prompt},
       ],
       "max_tokens": 4000,
       "temperature": 0.1,
@@ -145,11 +171,13 @@ class AIService {
 
   /// 调用文本API用于测试（返回原始字符串）
   static Future<String> _callTextAPIForTest(
-      AIConfig config, String prompt) async {
+    AIConfig config,
+    String prompt,
+  ) async {
     final requestBody = {
       "model": config.textModel,
       "messages": [
-        {"role": "user", "content": prompt}
+        {"role": "user", "content": prompt},
       ],
       "max_tokens": 100,
       "temperature": 0.1,
@@ -161,9 +189,14 @@ class AIService {
 
   /// 发送HTTP请求
   static Future<String> _makeRequest(
-      AIConfig config, Map<String, dynamic> requestBody) async {
+    AIConfig config,
+    Map<String, dynamic> requestBody,
+  ) async {
     return AITransport.complete(
-        url: config.endpoint, apiKey: config.apiKey, body: requestBody);
+      url: config.endpoint,
+      apiKey: config.apiKey,
+      body: requestBody,
+    );
   }
 
   /// 解析AI响应

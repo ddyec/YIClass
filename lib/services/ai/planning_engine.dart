@@ -91,10 +91,53 @@ class PlanningEngine {
   }
 
   static Map<String, dynamic> apply(
-      Map<String, dynamic> baseline, Map<String, dynamic> plan) {
+    Map<String, dynamic> baseline,
+    Map<String, dynamic> plan,
+  ) {
     validate(baseline);
     if (plan['questions'] is! List || (plan['questions'] as List).isNotEmpty) {
       throw const FormatException('请先补充 AI 提出的问题，再生成方案');
+    }
+    // The assistant may edit the complete JSON snapshot. Always validate a copy;
+    // only the preview page can persist it, and the local timetable ID is fixed.
+    if (plan.containsKey('timetable')) {
+      final value = plan['timetable'];
+      if (value is! Map<String, dynamic> ||
+          value['settings'] is! Map ||
+          value['events'] is! List ||
+          value['courses'] is! List) {
+        throw const FormatException(
+          'AI 需要返回完整课表 JSON（含 settings、courses、events）',
+        );
+      }
+      final result = clone(value)..['id'] = baseline['id'];
+      final settings = result['settings'] as Map;
+      final start = DateTime.tryParse(settings['startDate']?.toString() ?? '');
+      if (start == null ||
+          settings['totalWeeks'] is! int ||
+          settings['maxPeriods'] is! int ||
+          settings['classTimes'] is! List ||
+          settings['holidays'] is! List ||
+          !settings.keys.toSet().containsAll(
+            (baseline['settings'] as Map).keys,
+          )) {
+        throw const FormatException('AI 返回的学期、作息或休假设置不完整');
+      }
+      for (final time in settings['classTimes']) {
+        if (time is! Map ||
+            time['period'] is! int ||
+            !_clock(time['startTime']) ||
+            !_clock(time['endTime'])) {
+          throw const FormatException('AI 返回的作息时间无效');
+        }
+      }
+      for (final holiday in settings['holidays']) {
+        if (holiday is! String || DateTime.tryParse(holiday) == null) {
+          throw const FormatException('AI 返回的休假日期无效');
+        }
+      }
+      validate(result);
+      return result;
     }
     final actions = plan['actions'];
     if (actions is! List || actions.isEmpty || actions.length > 100) {
@@ -184,7 +227,7 @@ class PlanningEngine {
             'weekday': weekday,
             'periods': targetPeriods,
             'weekPattern': targetWeeks,
-          }
+          },
         ];
         if (a['location'] is String) moved['location'] = a['location'];
         courses.add(moved);
@@ -196,8 +239,9 @@ class PlanningEngine {
       }
     }
     for (final c in courses) {
-      (c['schedules'] as List)
-          .removeWhere((s) => (s['weekPattern'] as List).isEmpty);
+      (c['schedules'] as List).removeWhere(
+        (s) => (s['weekPattern'] as List).isEmpty,
+      );
     }
     settings['holidays'] = holidays;
     validate(result);
@@ -205,7 +249,8 @@ class PlanningEngine {
       for (final s in c['schedules']) {
         for (final w in s['weekPattern']) {
           final date = monday(settings).add(
-              Duration(days: ((w as int) - 1) * 7 + (s['weekday'] as int) - 1));
+            Duration(days: ((w as int) - 1) * 7 + (s['weekday'] as int) - 1),
+          );
           if (holidays.any((h) => h.startsWith(_day(date)))) {
             throw const FormatException('目标日期是休假日，请明确恢复上课或另选时间');
           }
@@ -214,8 +259,9 @@ class PlanningEngine {
     }
     // Existing conflicts may be repaired in stages; only new collisions block.
     final oldConflicts = conflicts(baseline).toSet();
-    final introduced =
-        conflicts(result).where((c) => !oldConflicts.contains(c));
+    final introduced = conflicts(
+      result,
+    ).where((c) => !oldConflicts.contains(c));
     if (introduced.isNotEmpty) {
       throw FormatException('方案产生冲突：${introduced.take(8).join('；')}');
     }
@@ -224,6 +270,52 @@ class PlanningEngine {
 
   static String _day(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  static bool _clock(dynamic value) =>
+      value is String && RegExp(r'^(?:[01]\d|2[0-3]):[0-5]\d$').hasMatch(value);
+
+  /// Explicit dates remove the need for the model to guess the semester week.
+  static List<Map<String, dynamic>> calendar(Map<String, dynamic> data) {
+    final settings = data['settings'] as Map;
+    final first = monday(settings);
+    final holidays = (settings['holidays'] as List? ?? [])
+        .map((d) => d.toString().substring(0, 10))
+        .toSet();
+    return [
+      for (
+        var offset = 0;
+        offset < (settings['totalWeeks'] as int) * 7;
+        offset++
+      )
+        {
+          'date': _day(DateTime(first.year, first.month, first.day + offset)),
+          'week': offset ~/ 7 + 1,
+          'weekday': offset % 7 + 1,
+          'rest': holidays.contains(
+            _day(DateTime(first.year, first.month, first.day + offset)),
+          ),
+          'classes': [
+            for (var ci = 0; ci < (data['courses'] as List).length; ci++)
+              for (
+                var si = 0;
+                si < (data['courses'][ci]['schedules'] as List).length;
+                si++
+              )
+                if (data['courses'][ci]['schedules'][si]['weekday'] ==
+                        offset % 7 + 1 &&
+                    (data['courses'][ci]['schedules'][si]['weekPattern']
+                            as List)
+                        .contains(offset ~/ 7 + 1))
+                  {
+                    'courseIndex': ci,
+                    'scheduleIndex': si,
+                    'name': data['courses'][ci]['name'],
+                    'periods': data['courses'][ci]['schedules'][si]['periods'],
+                  },
+          ],
+        },
+    ];
+  }
 
   static List<String> conflicts(Map<String, dynamic> data) {
     final settings = data['settings'] as Map;
@@ -235,7 +327,8 @@ class PlanningEngine {
       for (final s in c['schedules']) {
         for (final w in s['weekPattern']) {
           final date = monday(settings).add(
-              Duration(days: ((w as int) - 1) * 7 + (s['weekday'] as int) - 1));
+            Duration(days: ((w as int) - 1) * 7 + (s['weekday'] as int) - 1),
+          );
           if (holidays.contains(_day(date))) continue;
           for (final p in s['periods']) {
             final key = '第$w周 星期${s['weekday']} 第$p节';
@@ -256,7 +349,7 @@ class PlanningEngine {
         name: e['name'],
         start: eventTime(e['start']),
         end: eventTime(e['end']),
-        event: true
+        event: true,
       ));
     }
     final eventCount = intervals.length;
@@ -264,7 +357,8 @@ class PlanningEngine {
       for (final s in c['schedules']) {
         for (final w in s['weekPattern']) {
           final date = monday(settings).add(
-              Duration(days: ((w as int) - 1) * 7 + (s['weekday'] as int) - 1));
+            Duration(days: ((w as int) - 1) * 7 + (s['weekday'] as int) - 1),
+          );
           if (holidays.contains(_day(date))) continue;
           for (final p in s['periods']) {
             final time = (settings['classTimes'] as List? ?? [])
@@ -275,7 +369,7 @@ class PlanningEngine {
               name: c['name'],
               start: DateTime.parse('${_day(date)}T${time['startTime']}:00'),
               end: DateTime.parse('${_day(date)}T${time['endTime']}:00'),
-              event: false
+              event: false,
             ));
           }
         }
@@ -290,7 +384,8 @@ class PlanningEngine {
           final names = [a.name, b.name]..sort();
           final start = a.start.isAfter(b.start) ? a.start : b.start;
           found.add(
-              '${_day(start)} ${start.hour}:${start.minute.toString().padLeft(2, '0')}：${names.join(' / ')}');
+            '${_day(start)} ${start.hour}:${start.minute.toString().padLeft(2, '0')}：${names.join(' / ')}',
+          );
         }
       }
     }
