@@ -13,7 +13,7 @@ enum PdfTimetableReader {
     text.precomposedStringWithCompatibilityMapping
   }
 
-  static func read(_ pdf: PDFDocument) -> String {
+  static func read(_ pdf: PDFDocument, diagnostics: Bool = false) -> String {
     var sections = [String]()
     var columns = [Int: String]()
     var previousCenters = [CGFloat]()
@@ -56,6 +56,11 @@ enum PdfTimetableReader {
       }
       let labels = ["一", "二", "三", "四", "五", "六", "[日天]"]
       let candidates = labels.map { matches("(?:星\\s*期|周)\\s*\($0)") }
+      if diagnostics {
+        let info = "Page \(index): rotation=\(page.rotation) box=\(box) transform=\(transform)\n" +
+          "Text=\(normalized.prefix(300))\nCandidates=\(candidates)\n"
+        FileHandle.standardOutput.write(Data(info.utf8))
+      }
       // Pick a single aligned header row; mentions of weekdays in notes do not
       // invalidate a real table header.
       var headers = [CGRect]()

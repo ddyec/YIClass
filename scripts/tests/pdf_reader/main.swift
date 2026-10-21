@@ -51,7 +51,7 @@ func fixture(rotated: Bool) -> PDFDocument {
 
 check(PdfTimetableReader.normalize("星期⼀ 星期⼆ 星期⽇ ⼤学语⽂Ⅱ") == "星期一 星期二 星期日 大学语文II", "Compatibility glyphs must normalize")
 for rotated in [false, true] {
-  let text = PdfTimetableReader.read(fixture(rotated: rotated))
+  let text = PdfTimetableReader.read(fixture(rotated: rotated), diagnostics: true)
   for day in 1...7 {
     let start = "[YICLASS_COLUMN weekday=\(day)]\n"
     check(text.contains(start), "Missing weekday column, rotated=\(rotated), day=\(day)")
