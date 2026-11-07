@@ -17,9 +17,15 @@
 
 周课表使用实际字体测量课程文字。常见课名尽量显示全；极长课名保留最多四行可辨认前缀，点击或长按可读全文。地点单独计算所需高度，避免与长课名同时被省略号替代。内容多时只扩展需要的行，窄屏或冲突时可横向浏览，竖向滚动保持星期表头固定。收起状态的晚间入口始终在底部可见；展开后收起入口随内容滚动。
 
+## 当前验收包
+
+[下载 Android 3.3.0 APK](https://github.com/ddyec/YIClass/actions/runs/42322500055/artifacts/13553937967) · [构建与测试记录](https://github.com/ddyec/YIClass/actions/runs/42322500055) · [界面预览](docs/DESIGN.md)
+
+包内包含 `arm64-v8a`、`armeabi-v7a` 和 `x86_64`，已核对 ARM64 的 AArch64 二进制、签名与 SHA-256。最低 Android 7.0（API 24），目标 API 36。真机安装与系统权限仍待设备验收。
+
 ## 构建与验证
 
-Flutter 3.47.9、Java 21、Android SDK。Android 6.0+。运行：
+Flutter 3.47.9、Java 21、Android SDK。当前验收包最低 Android 7.0（API 24）。运行：
 
 ```bash
 flutter pub get --enforce-lockfile
