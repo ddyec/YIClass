@@ -1,78 +1,88 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:provider/provider.dart';
-import 'package:isar_plus/isar_plus.dart';
-import 'states/timetable_state.dart';
-import 'states/view_state.dart';
-import 'states/week_state.dart';
-import 'services/database_service.dart';
-import 'services/timetable/timetable_service.dart';
-import 'services/timetable/course_service.dart';
-import 'services/settings_service.dart';
-import 'services/course_reminder_service.dart';
-import 'routes/app_routes.dart';
-import 'routes/route_names.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'src/store.dart';
+import 'src/app.dart';
 
-/// 应用入口函数
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (kIsWeb) await Isar.initialize();
-
-  final timetableState = TimetableState();
-
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider.value(value: timetableState),
-        ChangeNotifierProvider(create: (_) => WeekState()),
-        ChangeNotifierProvider(create: (_) => ViewState()),
-      ],
-      child: const MyApp(),
-    ),
-  );
-
-  Future.microtask(() => _initializeServices(timetableState));
-}
-
-/// 初始化服务
-Future<void> _initializeServices(TimetableState timetableState) async {
-  final dbService = DatabaseService.instance;
-  await dbService.initialize();
-  final isar = dbService.isar;
-
-  await Future.wait([
-    TimetableService.instance.init(isar),
-    CourseService.instance.init(isar),
-    SettingsService.instance.init(isar),
-  ]);
-
-  await timetableState.init(isar);
-  _initializeCourseReminders(timetableState);
-}
-
-/// 初始化课程提醒
-Future<void> _initializeCourseReminders(TimetableState timetableState) async {
-  final settings = await SettingsService.instance.loadSettings();
-  if (!settings.courseReminder) return;
-
-  final currentTimetable = timetableState.current;
-  if (currentTimetable == null) return;
-
-  await CourseReminderService.instance.scheduleTodayReminders(currentTimetable);
-}
-
-/// 应用根组件
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      onGenerateRoute: AppRoutes.generateRoute,
-      initialRoute: RouteNames.home,
-      theme: ThemeData(useMaterial3: true),
+  try {
+    final store = await Store.open();
+    runApp(YIClassApp(store: store));
+  } catch (e) {
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: SelectableText('无法打开本地资料，请保留应用数据并重试。\n$e'),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
 
+class YIClassApp extends StatelessWidget {
+  const YIClassApp({super.key, required this.store});
+  final Store store;
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: store,
+    builder: (context, _) {
+      ThemeData theme(Brightness brightness) {
+        final colors = ColorScheme.fromSeed(
+          seedColor: Color(store.data['accent']),
+          brightness: brightness,
+        );
+        return ThemeData(
+          useMaterial3: true,
+          fontFamily: 'NotoSansSC',
+          colorScheme: colors,
+          scaffoldBackgroundColor: brightness == Brightness.light
+              ? const Color(0xfff6f7fb)
+              : const Color(0xff11141b),
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Colors.transparent,
+            scrolledUnderElevation: 0,
+          ),
+          inputDecorationTheme: const InputDecorationTheme(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(16)),
+            ),
+          ),
+          cardTheme: CardThemeData(
+            elevation: 0,
+            margin: const EdgeInsets.symmetric(vertical: 5),
+            color: brightness == Brightness.light
+                ? Colors.white
+                : const Color(0xff1d222c),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
+          listTileTheme: const ListTileThemeData(
+            contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+          ),
+        );
+      }
+
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'YIClass',
+        locale: const Locale('zh', 'CN'),
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        supportedLocales: const [Locale('zh', 'CN'), Locale('en')],
+        theme: theme(Brightness.light),
+        darkTheme: theme(Brightness.dark),
+        themeMode: switch (store.data['theme']) {
+          'light' => ThemeMode.light,
+          'dark' => ThemeMode.dark,
+          _ => ThemeMode.system,
+        },
+        home: Home(store: store),
+      );
+    },
+  );
+}

@@ -1,80 +1,32 @@
 plugins {
     id 'com.android.application'
     id 'kotlin-android'
-    // Flutter 插件必须放在后面
     id 'dev.flutter.flutter-gradle-plugin'
 }
-
-def keystorePropertiesFile = rootProject.file("key.properties")
-def keystoreProperties = new Properties()
-if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-}
-
 android {
-    namespace "com.wykwey.yiclass"
-    compileSdkVersion flutter.compileSdkVersion
-    ndkVersion "28.1.13356709"
-
+    namespace 'com.ddyec.yiclass'
+    compileSdk flutter.compileSdkVersion
+    ndkVersion flutter.ndkVersion
     defaultConfig {
-        // 设置最低 SDK 版本为 21
+        applicationId 'com.ddyec.yiclass'
         minSdkVersion flutter.minSdkVersion
-        targetSdkVersion 33  // 推荐使用最新的 SDK 版本
-        versionCode flutter.versionCode.toInteger()
+        targetSdk flutter.targetSdkVersion
+        versionCode flutter.versionCode
         versionName flutter.versionName
     }
-
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_21
-        targetCompatibility JavaVersion.VERSION_21
-        // 启用 core library desugaring（flutter_local_notifications 需要）
-        coreLibraryDesugaringEnabled true
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
-
-    kotlinOptions {
-        jvmTarget = "21"
-    }
-
-    lintOptions {
-        disable 'InvalidPackage'
-        checkReleaseBuilds false
-    }
-
-    signingConfigs {
-        release {
-            if (keystorePropertiesFile.exists()) {
-                storeFile file(keystoreProperties['storeFile'] ?: "upload-keystore.jks")
-                storePassword keystoreProperties['storePassword']
-                keyAlias keystoreProperties['keyAlias']
-                keyPassword keystoreProperties['keyPassword']
-            }
-        }
-    }
-
+    kotlinOptions { jvmTarget = '17' }
     buildTypes {
         release {
-            signingConfig signingConfigs.release
-            // 启用 R8 代码压缩
-            minifyEnabled true
-            // 启用资源缩减（需要 minifyEnabled 为 true）
-            shrinkResources true
-            // ProGuard 规则文件
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-        debug {
+            // The review APK is installable. Production distribution must use its own key.
             signingConfig signingConfigs.debug
-            minifyEnabled false
-            shrinkResources false
         }
     }
 }
-
+flutter { source '../..' }
 dependencies {
-    // Core library desugaring（flutter_local_notifications 需要）
-    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
+    implementation 'com.google.mlkit:text-recognition-chinese:16.0.1'
 }
-
-flutter {
-    source '../..'
-}
-
