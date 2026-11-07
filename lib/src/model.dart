@@ -463,3 +463,28 @@ void resizeSessions(J d, List<int> counts) {
   }
   d['timeProfile'] = {'sessionCounts': counts, 'periods': result};
 }
+
+String rangeLabel(dynamic value) {
+  final values = numbers(value).toSet().toList()..sort();
+  if (values.isEmpty) return '';
+  if (values.length >= 3 &&
+      List.generate(
+        values.length - 1,
+        (i) => values[i + 1] - values[i],
+      ).every((n) => n == 2)) {
+    return '${values.first}–${values.last} ${values.first.isOdd ? '单周' : '双周'}';
+  }
+  final parts = <String>[];
+  var start = values.first, end = start;
+  for (final n in values.skip(1)) {
+    if (n == end + 1) {
+      end = n;
+    } else {
+      parts.add(start == end ? '$start' : '$start–$end');
+      start = n;
+      end = n;
+    }
+  }
+  parts.add(start == end ? '$start' : '$start–$end');
+  return parts.join('、');
+}

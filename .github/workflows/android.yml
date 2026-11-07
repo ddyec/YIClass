@@ -2,8 +2,6 @@ name: Android review build
 on:
   push:
     branches: [main, 'android/**']
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read

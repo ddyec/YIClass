@@ -68,11 +68,11 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final data = store.data, table = selected(data);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 110),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
       children: [
         const Text(
           '设置',
-          style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+          style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 16),
         Card(
@@ -344,7 +344,7 @@ class SettingsPage extends StatelessWidget {
   }
 
   Widget section(String text) => Padding(
-    padding: const EdgeInsets.fromLTRB(4, 22, 0, 6),
+    padding: const EdgeInsets.fromLTRB(4, 18, 0, 6),
     child: Text(
       text,
       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
@@ -785,7 +785,7 @@ class _ImportPreviewState extends State<ImportPreview> {
                 child: ListTile(
                   title: Text(c['name']),
                   subtitle: Text(
-                    '${c['teacher']} · ${c['location']}\n${objects(c['schedules']).map((s) => '周${'一二三四五六日'[s['weekday'] - 1]}  第${s['periods'].join(',')}节  ${s['weekPattern'].join(',')}周').join('\n')}${c['unscheduledWeeks'] == null ? '' : '未排课：${c['unscheduledWeeks'].join(',')}周'}',
+                    '${c['teacher']} · ${c['location']}\n${objects(c['schedules']).map((s) => '周${'一二三四五六日'[s['weekday'] - 1]}  第${rangeLabel(s['periods'])}节  ${rangeLabel(s['weekPattern'])}周').join('\n')}${c['unscheduledWeeks'] == null ? '' : '未排课：${rangeLabel(c['unscheduledWeeks'])}周'}',
                   ),
                 ),
               ),

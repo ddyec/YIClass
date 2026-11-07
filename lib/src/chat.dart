@@ -323,6 +323,14 @@ class _ChatPageState extends State<ChatPage> {
               icon: const Icon(Icons.close),
             ),
             const Spacer(),
+            if (widget.store.canUndo)
+              IconButton(
+                tooltip: '撤销上次修改',
+                onPressed: busy
+                    ? null
+                    : () => attempt(context, widget.store.undo),
+                icon: const Icon(Icons.undo),
+              ),
             IconButton(
               tooltip: '新对话',
               onPressed: () {
@@ -487,37 +495,44 @@ class _ChatPageState extends State<ChatPage> {
           ),
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-          child: Column(
-            children: [
-              TextField(
-                controller: input,
-                minLines: 1,
-                maxLines: 5,
-                decoration: const InputDecoration(hintText: '说说你的安排…'),
-                onSubmitted: (_) => send(),
-              ),
-              Row(
+          child: Material(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(28),
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  TextButton.icon(
+                  IconButton(
+                    tooltip: '截图／文件',
                     onPressed: busy ? null : attach,
-                    icon: const Icon(Icons.attach_file),
-                    label: const Text('截图／文件'),
+                    icon: const Icon(Icons.add),
+                  ),
+                  Expanded(
+                    child: TextField(
+                      controller: input,
+                      minLines: 1,
+                      maxLines: 5,
+                      decoration: const InputDecoration(
+                        hintText: '说说你的安排…',
+                        filled: false,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 12,
+                        ),
+                      ),
+                      onSubmitted: (_) => send(),
+                    ),
                   ),
                   IconButton(
                     tooltip: '收起键盘',
                     onPressed: () =>
                         FocusManager.instance.primaryFocus?.unfocus(),
-                    icon: const Icon(Icons.keyboard_hide_outlined),
+                    icon: const Icon(Icons.keyboard_hide_outlined, size: 20),
                   ),
-                  const Spacer(),
-                  if (widget.store.canUndo)
-                    IconButton(
-                      tooltip: '撤销上次修改',
-                      onPressed: busy
-                          ? null
-                          : () => attempt(context, widget.store.undo),
-                      icon: const Icon(Icons.undo),
-                    ),
                   IconButton.filled(
                     tooltip: '发送',
                     onPressed: busy ? null : send,
@@ -525,7 +540,7 @@ class _ChatPageState extends State<ChatPage> {
                   ),
                 ],
               ),
-            ],
+            ),
           ),
         ),
       ],

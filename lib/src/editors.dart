@@ -260,10 +260,12 @@ class _CourseEditorState extends State<CourseEditor> {
           controller: name,
           decoration: const InputDecoration(labelText: '课程名称'),
         ),
+        const SizedBox(height: 12),
         TextField(
           controller: place,
           decoration: const InputDecoration(labelText: '上课地点'),
         ),
+        const SizedBox(height: 12),
         TextField(
           controller: teacher,
           decoration: const InputDecoration(labelText: '任课教师'),
@@ -307,9 +309,9 @@ class _CourseEditorState extends State<CourseEditor> {
               child: ListTile(
                 onTap: () => slot(e.key),
                 title: Text(
-                  '星期${'一二三四五六日'[e.value['weekday'] - 1]} · 第 ${e.value['periods'].join(',')} 节',
+                  '星期${'一二三四五六日'[e.value['weekday'] - 1]} · 第 ${rangeLabel(e.value['periods'])} 节',
                 ),
-                subtitle: Text('第 ${e.value['weekPattern'].join(',')} 周'),
+                subtitle: Text('第 ${rangeLabel(e.value['weekPattern'])} 周'),
                 trailing: IconButton(
                   tooltip: '删除安排',
                   icon: const Icon(Icons.close),
@@ -432,6 +434,7 @@ class _TodoEditorState extends State<TodoEditor> {
           decoration: const InputDecoration(labelText: '待办事项'),
           maxLength: 200,
         ),
+        const SizedBox(height: 12),
         TextField(
           controller: notes,
           decoration: const InputDecoration(labelText: '备注'),

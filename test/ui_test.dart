@@ -19,10 +19,6 @@ void main() {
         ),
       );
     await loader.load();
-    await (FontLoader('packages/cupertino_icons/CupertinoIcons')..addFont(
-          rootBundle.load('packages/cupertino_icons/assets/CupertinoIcons.ttf'),
-        ))
-        .load();
     await (FontLoader(
       'MaterialIcons',
     )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
@@ -218,6 +214,20 @@ void main() {
   ) async {
     final s = await launch(tester);
     expect(tester.takeException(), isNull);
+    expect(find.byType(NavigationBar), findsOneWidget);
+    final room = find.byKey(const ValueKey('course-location-course-13-4-7'));
+    final card = find.byKey(const ValueKey('course-card-course-13-4-7'));
+    final roomText = tester.widget<Text>(room);
+    expect(roomText.maxLines, isNull);
+    expect(roomText.overflow, isNot(TextOverflow.ellipsis));
+    expect(
+      tester.getRect(card).bottom,
+      greaterThanOrEqualTo(tester.getRect(room).bottom),
+    );
+    expect(
+      tester.getRect(find.text('晚间无课 · 展开')).bottom,
+      lessThan(tester.getTopLeft(find.byType(NavigationBar)).dy),
+    );
     await capture(tester, 'schedule-light');
     await tester.tap(find.byTooltip('添加课程'));
     await tester.pumpAndSettle();

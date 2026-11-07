@@ -1,7 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'model.dart';
 import 'store.dart';
@@ -33,7 +31,6 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> with WidgetsBindingObserver {
   int page = 0;
-  bool collapsed = false;
   Timer? timer;
   @override
   void initState() {
@@ -61,15 +58,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     }
   }
 
-  static const icons = [
-    CupertinoIcons.calendar,
-    CupertinoIcons.list_bullet,
-    CupertinoIcons.slider_horizontal_3,
-  ];
   @override
   Widget build(BuildContext context) {
-    final s = widget.store,
-        dark = Theme.of(context).brightness == Brightness.dark;
+    final s = widget.store, colors = Theme.of(context).colorScheme;
     if (s.error != null) {
       return Scaffold(
         appBar: AppBar(title: const Text('恢复资料')),
@@ -89,205 +80,80 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       );
     }
     return Scaffold(
-      extendBody: true,
       body: DecoratedBox(
         decoration: BoxDecoration(
           gradient: s.data['gradient'] == true
               ? LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: dark
-                      ? [const Color(0xff151b29), const Color(0xff14191f)]
-                      : [const Color(0xffeef3ff), const Color(0xfff3f6f5)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [colors.surfaceContainerLow, colors.surface],
                 )
               : null,
         ),
         child: SafeArea(
           bottom: false,
-          child: NotificationListener<UserScrollNotification>(
-            onNotification: (n) {
-              final next = n.direction == ScrollDirection.reverse;
-              if (n.direction != ScrollDirection.idle && next != collapsed) {
-                setState(() => collapsed = next);
-              }
-              return false;
-            },
-            child: IndexedStack(
-              index: page,
+          child: IndexedStack(
+            index: page,
+            children: [
+              SchedulePage(store: s),
+              TodosPage(store: s),
+              SettingsPage(store: s),
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: Material(
+        color: colors.surfaceContainerLow,
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 64,
+            child: Row(
               children: [
-                SchedulePage(store: s),
-                TodosPage(store: s),
-                SettingsPage(store: s),
-              ],
-            ),
-          ),
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        minimum: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Expanded(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                heightFactor: 1,
-                child: LayoutBuilder(
-                  builder: (c, box) => navigation(c, box.maxWidth),
+                Expanded(
+                  child: NavigationBar(
+                    height: 64,
+                    elevation: 0,
+                    backgroundColor: Colors.transparent,
+                    selectedIndex: page,
+                    indicatorColor: colors.secondaryContainer,
+                    onDestinationSelected: (v) => setState(() => page = v),
+                    destinations: const [
+                      NavigationDestination(
+                        icon: Icon(Icons.calendar_month_outlined),
+                        selectedIcon: Icon(Icons.calendar_month),
+                        label: '课表',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.checklist_outlined),
+                        selectedIcon: Icon(Icons.checklist),
+                        label: '待办',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.tune_outlined),
+                        selectedIcon: Icon(Icons.tune),
+                        label: '设置',
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            CircleAction(
-              label: 'AI 助手',
-              size: 60,
-              onTap: () => showChat(context, s),
-              child: const AssistantMark(size: 31),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget navigation(BuildContext context, double available) {
-    final dark = Theme.of(context).brightness == Brightness.dark,
-        accent = Color(widget.store.data['accent']);
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
-      height: 60,
-      width: collapsed ? 60 : available,
-      decoration: BoxDecoration(
-        color: dark
-            ? const Color(0xff262d36).withValues(alpha: .96)
-            : const Color(0xfff7f9fa).withValues(alpha: .94),
-        borderRadius: BorderRadius.circular(40),
-        border: Border.all(
-          color: dark ? Colors.white12 : Colors.white,
-          width: 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: .06),
-            blurRadius: 14,
-            offset: const Offset(0, 3),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: .04),
-            blurRadius: 1,
-            spreadRadius: 1,
-          ),
-        ],
-      ),
-      child: collapsed
-          ? IconButton(
-              tooltip: '展开导航',
-              onPressed: () => setState(() => collapsed = false),
-              icon: Icon(icons[page], color: accent, size: 25),
-            )
-          : Padding(
-              padding: const EdgeInsets.all(4),
-              child: Row(
-                children: List.generate(
-                  3,
-                  (i) => Expanded(child: navigationItem(context, i)),
+                SizedBox(
+                  height: 28,
+                  child: VerticalDivider(
+                    width: 1,
+                    color: colors.outlineVariant,
+                  ),
                 ),
-              ),
-            ),
-    );
-  }
-
-  Widget navigationItem(BuildContext context, int i) {
-    final dark = Theme.of(context).brightness == Brightness.dark,
-        accent = Color(widget.store.data['accent']);
-    final foreground = page == i
-        ? accent
-        : Theme.of(context).colorScheme.onSurface;
-    return Semantics(
-      selected: page == i,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(32),
-          onTap: () => setState(() => page = i),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            decoration: BoxDecoration(
-              color: page == i
-                  ? (dark
-                        ? Colors.white.withValues(alpha: .09)
-                        : const Color(0xffe5e9ed))
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(32),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icons[i], size: 25, color: foreground),
-                const SizedBox(height: 1),
-                Text(
-                  ['课表', '待办', '设置'][i],
-                  style: TextStyle(
-                    fontSize: 10,
-                    height: 1.2,
-                    fontWeight: FontWeight.w500,
-                    color: foreground,
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: IconButton.outlined(
+                    tooltip: 'AI 助手',
+                    onPressed: () => showChat(context, s),
+                    icon: const AssistantMark(size: 25),
                   ),
                 ),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class CircleAction extends StatelessWidget {
-  const CircleAction({
-    super.key,
-    required this.label,
-    required this.onTap,
-    required this.child,
-    this.size = 44,
-  });
-  final String label;
-  final VoidCallback onTap;
-  final Widget child;
-  final double size;
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return Tooltip(
-      message: label,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: dark
-              ? Colors.white.withValues(alpha: .04)
-              : Colors.white.withValues(alpha: .28),
-          border: Border.all(
-            color: dark ? Colors.white12 : const Color(0xffd9dfe5),
-            width: .7,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: .035),
-              blurRadius: 7,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          shape: const CircleBorder(),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: onTap,
-            child: Center(child: child),
           ),
         ),
       ),
@@ -452,95 +318,36 @@ class _SchedulePageState extends State<SchedulePage> {
   Widget build(BuildContext context) {
     final table = selected(data),
         week = weekFor(table, date),
-        accent = Color(data['accent']);
+        colors = Theme.of(context).colorScheme;
     final monday = date.subtract(Duration(days: date.weekday - 1));
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-          child: Row(
-            children: [
-              CircleAction(
-                label: '切换课表',
-                onTap: tables,
-                child: Icon(
-                  CupertinoIcons.square_stack,
-                  color: accent,
-                  size: 25,
-                ),
-              ),
-              Expanded(
-                child: GestureDetector(
-                  onTap: tables,
-                  onLongPress: () => showActions(),
-                  child: Text(
-                    table['name'],
-                    textAlign: TextAlign.center,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-              CircleAction(
-                label: '添加课程',
-                onTap: () => editCourse(context, widget.store),
-                child: Icon(CupertinoIcons.plus, color: accent, size: 28),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(
-          height: 48,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.fromLTRB(16, 4, 8, 2),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
             child: Row(
               children: [
-                IconButton(
-                  tooltip: '上一${mode == 0 ? '周' : '天'}',
-                  onPressed: () => setState(
-                    () =>
-                        date = date.subtract(Duration(days: mode == 0 ? 7 : 1)),
-                  ),
-                  icon: Icon(
-                    CupertinoIcons.chevron_left,
-                    color: accent,
-                    size: 21,
-                  ),
-                ),
                 Expanded(
-                  child: TextButton(
-                    onPressed: () async {
-                      final v = await pickDate(context, date);
-                      if (v != null) setState(() => date = v);
-                    },
-                    child: Text.rich(
-                      TextSpan(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: tables,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Row(
                         children: [
-                          TextSpan(
-                            text: mode == 0
-                                ? (week < 1
-                                      ? '学期未开始'
-                                      : week > table['totalWeeks']
-                                      ? '学期已结束'
-                                      : '第 $week 周')
-                                : '${date.month}月${date.day}日',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: accent,
+                          Flexible(
+                            child: Text(
+                              table['name'],
+                              style: Theme.of(context).textTheme.titleLarge,
                             ),
                           ),
-                          if (mode == 0)
-                            TextSpan(
-                              text: '  ${monday.month}月${monday.day}日',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: accent.withValues(alpha: .48),
-                              ),
-                            ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.expand_more,
+                            size: 20,
+                            color: colors.onSurfaceVariant,
+                          ),
                         ],
                       ),
                     ),
@@ -548,75 +355,101 @@ class _SchedulePageState extends State<SchedulePage> {
                 ),
                 TextButton(
                   onPressed: () => setState(() => date = day(DateTime.now())),
-                  child: Text(
-                    mode == 0 ? '本周' : '本日',
-                    style: TextStyle(fontSize: 14, color: accent),
-                  ),
+                  child: Text(mode == 0 ? '本周' : '本日'),
+                ),
+                IconButton.filled(
+                  tooltip: '添加课程',
+                  onPressed: () => editCourse(context, widget.store),
+                  icon: const Icon(Icons.add),
                 ),
                 IconButton(
-                  tooltip: '下一${mode == 0 ? '周' : '天'}',
-                  onPressed: () => setState(
-                    () => date = date.add(Duration(days: mode == 0 ? 7 : 1)),
-                  ),
-                  icon: Icon(
-                    CupertinoIcons.chevron_right,
-                    color: accent,
-                    size: 21,
-                  ),
+                  tooltip: '更多课表操作',
+                  onPressed: showActions,
+                  icon: const Icon(Icons.more_vert),
                 ),
               ],
             ),
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
-          child: Container(
-            height: 32,
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white10
-                  : const Color(0xffdfe3eb),
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Row(
-              children: List.generate(
-                3,
-                (i) => Expanded(
-                  child: Semantics(
-                    selected: mode == i,
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(24),
-                        onTap: () => setState(() => mode = i),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 180),
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: mode == i
-                                ? (Theme.of(context).brightness ==
-                                          Brightness.dark
-                                      ? const Color(0xff47505c)
-                                      : Colors.white)
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          child: Text(
-                            ['周', '日', '列表'][i],
-                            style: const TextStyle(
-                              fontSize: 13,
-                              height: 1.2,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ),
+          padding: const EdgeInsets.fromLTRB(8, 0, 12, 6),
+          child: Row(
+            children: [
+              IconButton(
+                tooltip: '上一${mode == 0 ? '周' : '天'}',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => setState(
+                  () => date = date.subtract(Duration(days: mode == 0 ? 7 : 1)),
+                ),
+                icon: const Icon(Icons.chevron_left),
+              ),
+              Expanded(
+                child: TextButton(
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                  ),
+                  onPressed: () async {
+                    final v = await pickDate(context, date);
+                    if (v != null) setState(() => date = v);
+                  },
+                  child: Text(
+                    mode == 0
+                        ? '第 $week 周 · ${monday.month}/${monday.day}'
+                        : '${date.month}月${date.day}日',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
               ),
-            ),
+              IconButton(
+                tooltip: '下一${mode == 0 ? '周' : '天'}',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => setState(
+                  () => date = date.add(Duration(days: mode == 0 ? 7 : 1)),
+                ),
+                icon: const Icon(Icons.chevron_right),
+              ),
+              const SizedBox(width: 6),
+              SizedBox(
+                height: 34,
+                child: SegmentedButton<int>(
+                  segments: const [
+                    ButtonSegment(value: 0, label: Text('周')),
+                    ButtonSegment(value: 1, label: Text('日')),
+                    ButtonSegment(value: 2, label: Text('列表')),
+                  ],
+                  selected: {mode},
+                  showSelectedIcon: false,
+                  style: ButtonStyle(
+                    side: const WidgetStatePropertyAll(BorderSide.none),
+                    backgroundColor: WidgetStateProperty.resolveWith(
+                      (states) => states.contains(WidgetState.selected)
+                          ? colors.primaryContainer
+                          : colors.surfaceContainerHigh,
+                    ),
+                    foregroundColor: WidgetStateProperty.resolveWith(
+                      (states) => states.contains(WidgetState.selected)
+                          ? colors.onPrimaryContainer
+                          : colors.onSurfaceVariant,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    padding: const WidgetStatePropertyAll(
+                      EdgeInsets.symmetric(horizontal: 10),
+                    ),
+                    textStyle: const WidgetStatePropertyAll(
+                      TextStyle(
+                        fontFamily: 'NotoSansSC',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  onSelectionChanged: (v) => setState(() => mode = v.first),
+                ),
+              ),
+            ],
           ),
         ),
         Expanded(
@@ -673,6 +506,30 @@ class _SchedulePageState extends State<SchedulePage> {
     );
   }
 
+  TextStyle get courseTitleStyle => Theme.of(context).textTheme.bodyMedium!
+      .copyWith(fontSize: 11.5, height: 1.2, fontWeight: FontWeight.w600);
+  TextStyle get coursePlaceStyle =>
+      Theme.of(context).textTheme.bodyMedium!.copyWith(
+        fontSize: 10.5,
+        height: 1.2,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      );
+  double textHeight(
+    String text,
+    TextStyle style,
+    double width, {
+    int? maxLines,
+  }) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: maxLines,
+      ellipsis: maxLines == null ? null : '…',
+    )..layout(maxWidth: width);
+    return painter.height;
+  }
+
   Widget weekGrid() => LayoutBuilder(
     builder: (context, box) {
       final periods = objects(data['timeProfile']['periods']),
@@ -681,261 +538,312 @@ class _SchedulePageState extends State<SchedulePage> {
           visible = evening ? periods.length : daytime,
           days = selected(data)['showWeekend'] == true ? 7 : 5;
       final monday = date.subtract(Duration(days: date.weekday - 1)),
-          accent = Color(data['accent']),
-          dark = Theme.of(context).brightness == Brightness.dark;
-      final scale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.6);
-      const header = 74.0, footer = 44.0, bottom = 92.0, lunch = 22.0;
-      final row =
-          ((box.maxHeight - header - footer - bottom - lunch) /
-                  (daytime == 0 ? 1 : daytime))
-              .clamp(36.0, 82.0) *
-          scale;
-      const rail = 44.0;
-      final width = (box.maxWidth - rail) / days;
-      double top(int i) =>
-          i * row +
-          (counts[0] > 0 && i >= counts[0] ? lunch : 0) +
-          (daytime > 0 && i >= daytime ? lunch : 0);
-      final height =
-          visible * row +
-          (counts[0] > 0 && visible > counts[0] ? lunch : 0) +
-          (daytime > 0 && visible > daytime ? lunch : 0);
+          colors = Theme.of(context).colorScheme;
+      final scaler = MediaQuery.textScalerOf(context), scale = scaler.scale(1);
+      const header = 56.0, footer = 38.0, lunch = 16.0, rail = 42.0;
       final events = List.generate(
         days,
-        (i) => lessons(data, monday.add(Duration(days: i))),
+        (i) => lanes(lessons(data, monday.add(Duration(days: i)))),
       );
+      var maxLanes = 1;
+      for (final e in events.expand((e) => e)) {
+        if (e['lanes'] > maxLanes) maxLanes = e['lanes'];
+      }
+      // Keep labels legible when days or overlapping courses need more width.
+      final minimumDay = 49.0 * maxLanes * scale.clamp(1.0, 1.5);
+      final gridWidth = (rail + minimumDay * days).clamp(
+            box.maxWidth,
+            double.infinity,
+          ),
+          width = (gridWidth - rail) / days;
+      final baseRow =
+          ((box.maxHeight - header - footer - lunch) /
+                  (daytime == 0 ? 1 : daytime))
+              .clamp(44.0, 90.0) *
+          scale.clamp(1.0, 1.5);
+      final heights = List<double>.filled(periods.length, baseRow);
+      double gapBefore(int i) =>
+          (counts[0] > 0 && i == counts[0] ? lunch : 0) +
+          (daytime > 0 && i == daytime ? lunch : 0);
+      double top(int i) {
+        var v = 0.0;
+        for (var n = 0; n < i; n++) {
+          v += heights[n];
+        }
+        for (var n = 1; n <= i; n++) {
+          v += gapBefore(n);
+        }
+        return v;
+      }
+
+      for (final e in events.expand((e) => e)) {
+        final ps = numbers(e['periods']);
+        final course = objects(
+          selected(data)['courses'],
+        ).firstWhere((c) => c['id'] == e['sourceID']);
+        final usable = (width / (e['lanes'] as int) - 14).clamp(
+          16.0,
+          double.infinity,
+        );
+        final location = course['location'] as String;
+        // A recognisable title gets up to four lines; the room keeps its own full area.
+        final needed =
+            textHeight(e['title'], courseTitleStyle, usable, maxLines: 4) +
+            (location.isEmpty
+                ? 0
+                : 5 + textHeight(location, coursePlaceStyle, usable)) +
+            24;
+        final existing =
+            top(ps.last - 1) + heights[ps.last - 1] - top(ps.first - 1) - 6;
+        if (needed > existing) {
+          final extra = (needed - existing) / ps.length;
+          for (final n in ps) {
+            heights[n - 1] += extra;
+          }
+        }
+      }
+      final height = visible == 0
+          ? 0.0
+          : top(visible - 1) + heights[visible - 1];
       final hasNight = events
           .expand((e) => e)
           .any((e) => numbers(e['periods']).any((n) => n > daytime));
-      final subtle = Theme.of(
-        context,
-      ).colorScheme.onSurface.withValues(alpha: .42);
-      return Column(
-        children: [
-          SizedBox(
-            height: header,
-            child: Row(
-              children: [
-                SizedBox(
-                  width: rail,
-                  child: Center(
-                    child: Text(
-                      '节次',
-                      style: TextStyle(fontSize: 10, color: subtle),
-                    ),
-                  ),
-                ),
-                ...List.generate(days, (i) {
-                  final d = monday.add(Duration(days: i)),
-                      today = dateText(d) == dateText(DateTime.now());
-                  return SizedBox(
-                    width: width,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          '周${'一二三四五六日'[i]}',
-                          style: TextStyle(fontSize: 11, color: subtle),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          width: 30,
-                          height: 30,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: today ? accent : Colors.transparent,
-                          ),
-                          child: Text(
-                            '${d.day}',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              height: 1,
-                              color: today
-                                  ? Colors.white
-                                  : Theme.of(context).colorScheme.onSurface,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-              ],
+      Widget nightButton() => SizedBox(
+        height: footer,
+        child: Center(
+          child: TextButton.icon(
+            onPressed: () => setState(() => evening = !evening),
+            icon: const Icon(Icons.bedtime_outlined, size: 17),
+            label: Text(
+              evening
+                  ? '收起晚间'
+                  : hasNight
+                  ? '晚间有课 · 展开'
+                  : '晚间无课 · 展开',
+              style: const TextStyle(fontSize: 13),
             ),
           ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: bottom),
-              child: Column(
-                children: [
-                  SizedBox(
-                    height: height,
-                    child: Stack(
-                      children: [
-                        ...List.generate(days, (i) {
-                          final d = monday.add(Duration(days: i));
-                          return Positioned(
-                            left: rail + i * width,
-                            top: 0,
-                            bottom: 0,
-                            width: width,
-                            child: ColoredBox(
-                              color: dateText(d) == dateText(DateTime.now())
-                                  ? accent.withValues(
-                                      alpha: dark ? 0.035 : 0.02,
-                                    )
-                                  : Colors.transparent,
-                            ),
-                          );
-                        }),
-                        ...List.generate(
-                          visible,
-                          (i) => Positioned(
-                            top: top(i),
-                            left: 0,
-                            right: 0,
-                            height: row,
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                border: Border(
-                                  top: BorderSide(
-                                    color: Theme.of(
-                                      context,
-                                    ).dividerColor.withValues(alpha: .035),
-                                    width: .5,
-                                  ),
-                                ),
-                              ),
-                              child: Align(
-                                alignment: Alignment.topLeft,
-                                child: SizedBox(
-                                  width: rail,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      alignment: Alignment.topCenter,
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            '${i + 1}',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              height: 1.2,
-                                              fontWeight: FontWeight.w500,
-                                              color: subtle,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            clock(periods[i]['start']),
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              height: 1.2,
-                                              color: subtle,
-                                            ),
-                                          ),
-                                          Text(
-                                            clock(periods[i]['end']),
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              height: 1.2,
-                                              color: subtle.withValues(
-                                                alpha: .3,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        ...List.generate(
-                          days,
-                          (i) => Positioned(
-                            top: 0,
-                            left: rail + i * width,
-                            width: width,
-                            height: height,
-                            child: Stack(
-                              children: weekCards(
-                                events[i],
-                                row,
-                                width,
-                                visible,
-                                top,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+        ),
+      );
+      Widget heading() => SizedBox(
+        height: header,
+        child: Row(
+          children: [
+            SizedBox(
+              width: rail,
+              child: Center(
+                child: Text(
+                  '节次',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: colors.onSurfaceVariant,
                   ),
-                  if (counts[2] > 0)
-                    SizedBox(
-                      height: footer,
-                      child: Center(
-                        child: TextButton.icon(
-                          onPressed: () => setState(() => evening = !evening),
-                          icon: Icon(
-                            CupertinoIcons.moon,
-                            size: 17,
-                            color: accent,
-                          ),
-                          label: Text(
-                            evening
-                                ? '收起晚间'
-                                : hasNight
-                                ? '晚间有课 · 展开'
-                                : '晚间无课 · 展开',
-                            style: TextStyle(
-                              color: accent,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                ),
+              ),
+            ),
+            ...List.generate(days, (i) {
+              final d = monday.add(Duration(days: i)),
+                  today = dateText(d) == dateText(DateTime.now());
+              return SizedBox(
+                width: width,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      '周${'一二三四五六日'[i]}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      width: 28,
+                      height: 28,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(today ? 10 : 14),
+                        color: today ? colors.primary : Colors.transparent,
+                      ),
+                      child: Text(
+                        '${d.day}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          height: 1,
+                          color: today ? colors.onPrimary : colors.onSurface,
                         ),
                       ),
                     ),
-                ],
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      );
+      return Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: gridWidth,
+                child: Column(
+                  children: [
+                    heading(),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Column(
+                          children: [
+                            SizedBox(
+                              height: height,
+                              child: Stack(
+                                children: [
+                                  ...List.generate(days, (i) {
+                                    final d = monday.add(Duration(days: i));
+                                    return Positioned(
+                                      left: rail + i * width,
+                                      top: 0,
+                                      bottom: 0,
+                                      width: width,
+                                      child: ColoredBox(
+                                        color:
+                                            dateText(d) ==
+                                                dateText(DateTime.now())
+                                            ? colors.primary.withValues(
+                                                alpha: .035,
+                                              )
+                                            : Colors.transparent,
+                                      ),
+                                    );
+                                  }),
+                                  ...List.generate(
+                                    visible,
+                                    (i) => Positioned(
+                                      top: top(i),
+                                      left: 0,
+                                      right: 0,
+                                      height: heights[i],
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          border: Border(
+                                            top: BorderSide(
+                                              color: colors.outlineVariant
+                                                  .withValues(alpha: .35),
+                                              width: .5,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Align(
+                                          alignment: Alignment.topLeft,
+                                          child: SizedBox(
+                                            width: rail,
+                                            child: Padding(
+                                              padding: const EdgeInsets.only(
+                                                top: 7,
+                                              ),
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(
+                                                    '${i + 1}',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      height: 1.1,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: colors
+                                                          .onSurfaceVariant,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 3),
+                                                  Text(
+                                                    clock(periods[i]['start']),
+                                                    style: TextStyle(
+                                                      fontSize: 9,
+                                                      height: 1.15,
+                                                      color: colors
+                                                          .onSurfaceVariant,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    clock(periods[i]['end']),
+                                                    style: TextStyle(
+                                                      fontSize: 9,
+                                                      height: 1.15,
+                                                      color: colors
+                                                          .onSurfaceVariant
+                                                          .withValues(
+                                                            alpha: .7,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  ...List.generate(
+                                    days,
+                                    (i) => Positioned(
+                                      top: 0,
+                                      left: rail + i * width,
+                                      width: width,
+                                      height: height,
+                                      child: Stack(
+                                        children: weekCards(
+                                          events[i],
+                                          width,
+                                          visible,
+                                          top,
+                                          heights,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (evening && counts[2] > 0) nightButton(),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
+          if (!evening && counts[2] > 0) nightButton(),
         ],
       );
     },
   );
   List<Widget> weekCards(
     List<J> events,
-    double row,
     double width,
     int visible,
     double Function(int) top,
+    List<double> heights,
   ) {
     final result = <Widget>[],
+        colors = Theme.of(context).colorScheme,
         dark = Theme.of(context).brightness == Brightness.dark;
-    for (final e in lanes(events)) {
+    for (final e in events) {
       final ps = numbers(e['periods']);
       if (ps.first > visible) continue;
       final last = ps.last.clamp(1, visible),
           laneWidth = width / (e['lanes'] as int),
           color = Color(e['color']);
-      final height = top(last - 1) + row - top(ps.first - 1) - 8;
+      final height = top(last - 1) + heights[last - 1] - top(ps.first - 1) - 6;
       final course = objects(
         selected(data)['courses'],
       ).firstWhere((c) => c['id'] == e['sourceID']);
-      final lines = height >= 100
-          ? 3
-          : height >= 64
-          ? 2
-          : 1;
       result.add(
         Positioned(
           top: top(ps.first - 1) + 3,
@@ -945,60 +853,49 @@ class _SchedulePageState extends State<SchedulePage> {
           child: Semantics(
             label: '${e['title']} ${course['location']}',
             button: true,
-            child: Material(
-              color: color.withValues(alpha: dark ? 0.24 : 0.16),
-              borderRadius: BorderRadius.circular(9),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: () => openItem(e),
-                child: Stack(
-                  children: [
-                    Align(
-                      alignment: Alignment.topCenter,
-                      child: Container(
-                        width: (laneWidth - 8) * .78,
-                        height: 2.7,
-                        decoration: BoxDecoration(
-                          color: color,
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(4, 5, 3, 4),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            e['title'],
-                            maxLines: lines,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 11,
-                              height: 1.18,
-                              fontWeight: FontWeight.w600,
-                              color: Theme.of(context).colorScheme.onSurface,
-                            ),
+            child: Tooltip(
+              message: '${e['title']}\n${course['location']}',
+              child: Material(
+                key: ValueKey('course-card-${e['id']}'),
+                color: Color.alphaBlend(
+                  color.withValues(alpha: dark ? 0.22 : 0.105),
+                  colors.surface,
+                ),
+                borderRadius: BorderRadius.circular(12),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => openItem(e),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(5, 6, 5, 6),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 18,
+                          height: 3,
+                          margin: const EdgeInsets.only(bottom: 3),
+                          decoration: BoxDecoration(
+                            color: color,
+                            borderRadius: BorderRadius.circular(2),
                           ),
-                          const SizedBox(height: 4),
-                          Expanded(
-                            child: Text(
-                              course['location'],
-                              maxLines: 6,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 10,
-                                height: 1.2,
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurface.withValues(alpha: .48),
-                              ),
-                            ),
+                        ),
+                        Text(
+                          e['title'],
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
+                          style: courseTitleStyle,
+                        ),
+                        if ((course['location'] as String).isNotEmpty) ...[
+                          const SizedBox(height: 5),
+                          Text(
+                            course['location'],
+                            key: ValueKey('course-location-${e['id']}'),
+                            style: coursePlaceStyle,
                           ),
                         ],
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -1010,127 +907,190 @@ class _SchedulePageState extends State<SchedulePage> {
   }
 
   Widget dayTimeline() {
-    final items = timeline(data, date),
-        startDay = day(date),
-        endDay = DateTime(date.year, date.month, date.day + 1);
-    final clipped = items.map((e) {
-      final v = copy(e);
-      if (DateTime.parse(v['start']).isBefore(startDay)) {
-        v['start'] = startDay.toIso8601String();
+    final items = timeline(data, date), colors = Theme.of(context).colorScheme;
+    final groups = <List<J>>[];
+    DateTime? lastEnd;
+    for (final item in items) {
+      final start = DateTime.parse(item['start']),
+          end = DateTime.parse(item['end']);
+      if (lastEnd == null || !start.isBefore(lastEnd)) {
+        groups.add([]);
+        lastEnd = end;
+      } else if (end.isAfter(lastEnd)) {
+        lastEnd = end;
       }
-      if (DateTime.parse(v['end']).isAfter(endDay)) {
-        v['end'] = at(date, 1439).toIso8601String();
-      }
-      return v;
-    }).toList();
-    final allocated = lanes(clipped);
-    final now = DateTime.now();
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 110),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ...objects(data['todos'])
-              .where(
-                (t) =>
-                    t['deadline'] != null &&
-                    dateText(DateTime.parse(t['deadline'])) == dateText(date),
-              )
-              .map(
-                (t) => Card(
-                  child: ListTile(
-                    dense: true,
-                    leading: const Icon(Icons.flag_outlined),
-                    title: Text('今日截止 · ${t['title']}'),
-                    onTap: () => editTodo(context, widget.store, t),
-                  ),
-                ),
-              ),
-          if (items.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(20),
-              child: Text('今天还没有安排，添加课程或把待办安排到日程。'),
-            ),
-          LayoutBuilder(
-            builder: (context, box) {
-              const unit = 1.1;
-              const left = 48.0;
-              final available = box.maxWidth - left;
-              return SizedBox(
-                height: 1440 * unit,
-                child: Stack(
+      groups.last.add(item);
+    }
+    Widget itemCard(J e) {
+      final a = DateTime.parse(e['start']),
+          b = DateTime.parse(e['end']),
+          color = Color(e['color']);
+      return Card(
+        margin: const EdgeInsets.only(bottom: 8),
+        color: Color.alphaBlend(color.withValues(alpha: .11), colors.surface),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => openItem(e),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    ...List.generate(
-                      24,
-                      (h) => Positioned(
-                        top: h * 60 * unit,
-                        left: 0,
-                        right: 0,
-                        child: Row(
-                          children: [
-                            SizedBox(
-                              width: left,
-                              child: Text(
-                                '${h.toString().padLeft(2, '0')}:00',
-                                style: const TextStyle(fontSize: 11),
-                              ),
-                            ),
-                            Expanded(
-                              child: Divider(
-                                color: Theme.of(
-                                  context,
-                                ).dividerColor.withValues(alpha: .16),
-                              ),
-                            ),
-                          ],
-                        ),
+                    Icon(
+                      e['kind'] == 'course'
+                          ? Icons.school_outlined
+                          : Icons.task_alt,
+                      size: 17,
+                      color: colors.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        '${clock(minute(a))}–${clock(minute(b))}',
+                        style: Theme.of(context).textTheme.labelMedium,
                       ),
                     ),
-                    ...allocated.map((e) {
-                      final a = minute(DateTime.parse(e['start'])),
-                          b = minute(DateTime.parse(e['end']));
-                      final width = available / e['lanes'];
-                      return Positioned(
-                        top: a * unit,
-                        left: left + e['lane'] * width + 2,
-                        width: width - 4,
-                        height: ((b - a) < 35 ? 35 : b - a) * unit,
-                        child: Material(
-                          color: Color(e['color']).withValues(alpha: .2),
-                          borderRadius: BorderRadius.circular(12),
-                          clipBehavior: Clip.antiAlias,
-                          child: InkWell(
-                            onTap: () => openItem(e),
-                            child: Padding(
-                              padding: const EdgeInsets.all(7),
-                              child: Text(
-                                '${e['title']}\n${clock(a)}–${clock(b)}  ${e['subtitle']}',
-                                maxLines: 4,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 12),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  e['title'],
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                if (e['subtitle'].toString().isNotEmpty) ...[
+                  const SizedBox(height: 5),
+                  Text(
+                    e['subtitle'],
+                    style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+      children: [
+        ...objects(data['todos'])
+            .where(
+              (t) =>
+                  t['deadline'] != null &&
+                  dateText(DateTime.parse(t['deadline'])) == dateText(date),
+            )
+            .map(
+              (t) => Card(
+                color: colors.tertiaryContainer,
+                child: ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.flag_outlined),
+                  title: Text(t['title']),
+                  subtitle: Text(
+                    '今日 ${clock(minute(DateTime.parse(t['deadline'])))} 截止',
+                  ),
+                  onTap: () => editTodo(context, widget.store, t),
+                ),
+              ),
+            ),
+        if (items.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 28),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.event_available_outlined,
+                  size: 36,
+                  color: colors.primary,
+                ),
+                const SizedBox(height: 12),
+                const Text('今天没有安排'),
+                TextButton(
+                  onPressed: () => editTodo(context, widget.store),
+                  child: const Text('安排一项待办'),
+                ),
+              ],
+            ),
+          ),
+        ...groups.map((group) {
+          final allocated = lanes(group),
+              columns = allocated.first['lanes'] as int;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 44,
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 12),
+                      Text(
+                        clock(minute(DateTime.parse(group.first['start']))),
+                        style: Theme.of(context).textTheme.labelSmall!.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: colors.primary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, box) {
+                      final width = (columns * 136.0).clamp(
+                        box.maxWidth,
+                        double.infinity,
+                      );
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: SizedBox(
+                          width: width,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: List.generate(
+                              columns,
+                              (lane) => Expanded(
+                                child: Padding(
+                                  padding: EdgeInsets.only(
+                                    left: lane == 0 ? 0 : 6,
+                                  ),
+                                  child: Column(
+                                    children: allocated
+                                        .where((e) => e['lane'] == lane)
+                                        .map(itemCard)
+                                        .toList(),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
                         ),
                       );
-                    }),
-                    if (dateText(now) == dateText(date))
-                      Positioned(
-                        top: minute(now) * unit,
-                        left: left,
-                        right: 0,
-                        child: Container(
-                          height: 1.5,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                  ],
+                    },
+                  ),
                 ),
-              );
-            },
-          ),
-        ],
-      ),
+              ],
+            ),
+          );
+        }),
+      ],
     );
   }
 
@@ -1141,7 +1101,7 @@ class _SchedulePageState extends State<SchedulePage> {
             .toList();
     final events = lessons(data, date);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 110),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       children: [
         if (events.isEmpty)
           const Padding(padding: EdgeInsets.all(20), child: Text('当天没有课程')),
@@ -1225,12 +1185,26 @@ class _TodosPageState extends State<TodosPage> {
     final completed = all.where((t) => t['completedAt'] != null).toList();
     Widget card(J t) {
       final color = Color(urgencyColor(t, now));
+      final due = t['deadline'] == null ? null : DateTime.parse(t['deadline']);
+      final dueLabel = due == null
+          ? ''
+          : dateText(due) == dateText(now)
+          ? clock(minute(due))
+          : '${due.month}/${due.day} ${clock(minute(due))}';
       return Card(
-        color: color.withValues(alpha: .14),
+        color: Theme.of(context).colorScheme.surfaceContainerLowest,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(
+            color: Theme.of(context).colorScheme.outlineVariant,
+            width: .7,
+          ),
+        ),
         child: ListTile(
           onTap: () => editTodo(context, widget.store, t),
           leading: Checkbox(
             value: t['completedAt'] != null,
+            side: BorderSide(color: color, width: 1.6),
             onChanged: (v) => attempt(
               context,
               () => widget.store.commit((d) {
@@ -1252,7 +1226,7 @@ class _TodosPageState extends State<TodosPage> {
             ),
           ),
           subtitle: Text(
-            '${urgency(t, now)}${t['importance'] == 'high' ? ' · 重要' : ''}${t['deadline'] == null ? '' : ' · ${dateText(DateTime.parse(t['deadline']))} ${clock(minute(DateTime.parse(t['deadline'])))}'}',
+            '${urgency(t, now)}${t['importance'] == 'high' ? ' · 重要' : ''}${dueLabel.isEmpty ? '' : ' · $dueLabel'}',
           ),
           trailing: const Icon(Icons.chevron_right),
         ),
@@ -1262,13 +1236,13 @@ class _TodosPageState extends State<TodosPage> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 12, 16),
+          padding: const EdgeInsets.fromLTRB(16, 8, 8, 6),
           child: Row(
             children: [
               const Expanded(
                 child: Text(
                   '待办',
-                  style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
                 ),
               ),
               TextButton.icon(
@@ -1279,7 +1253,7 @@ class _TodosPageState extends State<TodosPage> {
                 icon: const Icon(Icons.calendar_today_outlined, size: 18),
                 label: Text('${date.month}月${date.day}日'),
               ),
-              IconButton(
+              IconButton.filled(
                 tooltip: '添加待办',
                 onPressed: () => editTodo(context, widget.store),
                 icon: const Icon(Icons.add),
@@ -1289,13 +1263,13 @@ class _TodosPageState extends State<TodosPage> {
         ),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 110),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             children: [
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 12, horizontal: 4),
                 child: Text(
                   '待完成',
-                  style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                 ),
               ),
               if (pending.isEmpty)
