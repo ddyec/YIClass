@@ -1,236 +1,47 @@
-#  YIClass - 智能课表管理应用
+# YIClass Android
 
-一个功能完善的跨平台课表应用，支持多种视图模式、AI智能导入、文件导入导出，界面美观，操作流畅。
+全新 Flutter Android 版，以原生 iOS 3.3.0 的设计和工作流程为基准。不读取旧 Isar 数据库。以统一的 Material 3 Expressive 主题适配 Android：鲜明的文字层级、色彩角色、成组圆角表单、贴边 Material 导航和独立 AI 操作，不混用 Cupertino 控件。保留书页产品标识与浅深色线稿助手。
 
-**当前版本**: v2.3.5
+- 周／日／列表、多课表、课程增删改、周次与单双周、未排时间课程、停课日期、冲突并排。
+- 统一 4+4+2 课节时间；编辑开始／结束联动后续课节；统一时长和课间保留午休；增减课节映射所有课表，禁止删除正在使用的节次。
+- 待办重要程度、截止时间、完成／重开、紧迫度配色与文字、折叠已完成。工作时间独立于截止时间，日时间轴混排课程与待办并将冲突分列。
+- AI 对话抽屉、新对话、独立历史、取消、一次撤销；明确修改直接校验并保存，失败整批不落盘，资料更新后拒绝过期回复。支持以实际下一次开课时间设置待办截止。
+- 自定义 HTTPS OpenAI 兼容接口，DeepSeek 快捷填写，用未保存配置测试。密钥放 Android 安全存储，拒绝重定向和截断输出。
+- JSON 课表导入／导出兼容 iOS；完整备份单独包含待办、日程、历史，不含密钥。导入新建课表并预览，默认保留统一时间。
+- 图片与 PDF 使用捆绑的 ML Kit 中文模型本机识字，保留页码与文字坐标；TXT／CSV 可读取、编辑后交给所配置 AI 整理成课表。识别有误可以返回文字编辑再生成预览。PDF 最多 20 页，文件最多 20 MB，读取或识别可取消，迟到结果不应用。
+- Android 原生课程／待办桌面小组件，以及课程、已安排待办的系统通知。修改、切换、撤销、回到前台均刷新，重启后恢复已保存的提醒计划。
 
-##  核心功能
+## 信息密度与课程可读性
 
-### 视图模式
-- **周视图**：直观展示整周课程安排，支持多课程并排显示
-- **日视图**：专注单日详细课程，彩色边框清晰标识
-- **列表视图**：按周次分组查看所有课程，卡片式展示
+顶部课表操作和视图切换合为两行；底栏使用标准 Material 导航，不预留悬浮玻璃胶囊的额外空白。日视图按时间顺序显示紧凑日程，实际重叠事件分列，不绘制整屏空置的 24 小时。
 
-### 课程管理
-- 添加/编辑/删除课程
-- 自定义课程颜色（预设颜色自动分配）
-- 多课表支持（可创建和管理多个课表）
-- 课程时间冲突检测
-- 连续节次自动识别
+周课表使用实际字体测量课程文字。常见课名尽量显示全；极长课名保留最多四行可辨认前缀，点击或长按可读全文。地点单独计算所需高度，避免与长课名同时被省略号替代。内容多时只扩展需要的行，窄屏或冲突时可横向浏览，竖向滚动保持星期表头固定。收起状态的晚间入口始终在底部可见；展开后收起入口随内容滚动。
 
-### 智能导入
-- **AI图片识别**：上传课程表图片，自动识别课程信息
-- **AI表格解析**：解析CSV/Excel格式的课程表
-- **AI文字识别**：从自然语言描述中提取课程数据
-- **多AI服务支持**：OpenAI、Claude、Gemini、DeepSeek
-- **文件导入/导出**：支持JSON格式导入导出课表数据
+## 当前验收包
 
-### 其他功能
-- 显示/隐藏周末课程
-- 按周筛选课程
-- 自定义上课时间设置
-- 节假日和补课日管理
-- 数据本地持久化（Isar数据库）
+[下载 Android 3.3.0 APK](https://github.com/ddyec/YIClass/actions/runs/42322500055/artifacts/13553937967) · [构建与测试记录](https://github.com/ddyec/YIClass/actions/runs/42322500055) · [界面预览](docs/DESIGN.md)
 
-##  应用截图
+包内包含 `arm64-v8a`、`armeabi-v7a` 和 `x86_64`，已核对 ARM64 的 AArch64 二进制、签名与 SHA-256。最低 Android 7.0（API 24），目标 API 36。真机安装与系统权限仍待设备验收。
 
-TODO: 添加应用截图
+## 构建与验证
 
-##  快速开始
+Flutter 3.47.9、Java 21、Android SDK。当前验收包最低 Android 7.0（API 24）。运行：
 
-### 运行要求
-- Flutter 3.5.0+
-- Dart 3.5.0+
-- Android SDK 21+ (Android)
-- iOS 12+ (iOS)
-- Windows 10+ / macOS 10.14+ / Linux (桌面端)
-
-### 安装步骤
 ```bash
-git clone https://github.com/wykwey/YIClass
-cd YIClass
-flutter pub get
-flutter run
+flutter pub get --enforce-lockfile
+flutter analyze
+flutter test
+flutter build apk --release
 ```
 
-### AI功能配置（可选）
-1. 打开应用设置 → 高级功能 → AI导入配置
-2. 选择或配置AI服务提供商（OpenAI/Claude/Gemini/DeepSeek）
-3. 输入API Key和接口地址
-4. 选择使用的模型（视觉模型/文本模型）
-5. 保存配置后即可使用AI导入功能
+Actions 按 Test → Build APK 顺序执行。APK 是用构建环境调试密钥签名的可安装验收包，正式分发应配置稳定的发布密钥。应用 ID 为 `com.ddyec.yiclass`，与旧版独立安装。
 
-##  数据结构说明
+`test/core_test.dart` 验证课表计算、导入、时间映射、日程和原子存储；`test/ui_test.dart` 使用生产组件执行页面操作和浅／深色小屏渲染，截图保存到 `/tmp/yiclass-review`，不属于 Android 真机截图。
 
-### 课程模型
-```dart
-class Course {
-  String name;              // 课程名称
-  String location;          // 上课地点
-  String teacher;           // 教师姓名
-  int color;               // 课程颜色（ARGB格式）
-  List<CourseSchedule> schedules; // 上课时间安排
-}
+## 平台对应与验收边界
 
-class CourseSchedule {
-  int weekday;            // 星期几 (1=周一, ..., 7=周日)
-  List<int> periods;       // 节次列表 (如[1,2]表示1-2节)
-  List<int> weekPattern;   // 上课周次数组 (如[1,2,3,4,5,6])
-  String reminder;         // 提醒设置
-}
-```
+Apple Intelligence、灵动岛与 WidgetKit 是 iOS 专属能力；Android 使用自定义 AI 接口、系统通知和 AppWidget。锁屏是否能放小组件由系统／启动器决定。通知默认提前 10 分钟；没有精确闹钟权限时使用系统非精确提醒，省电／强行停止应用会影响投递。当前保存未来 8 天日程，每次打开重新补充；长时间不打开不会无限延展计划。需要在真实 Android 设备验收权限、OCR、分享、小组件和通知。
 
-### 时间安排格式
-- `weekday`: 星期几 (1=周一, 2=周二...7=周日)
-- `periods`: 节次列表，范围 1-20 (如[1,2]表示1-2节)
-- `weekPattern`: 周次数组，具体数字列表 (如[1,2,3,4,5,6]表示第1-6周)
+PDF 目前通过页面渲染识字后由 AI 整理，不具备 iOS PDFKit 的结构化 PDF 离线解析器；Apple 设备模型也没有移植为 Android 本地大模型。不包含旧教务网页脚本仓库。以上不宣称与 iOS 所有系统能力完全等价。
 
-### 课表设置
-```dart
-class TimetableSettings {
-  DateTime startDate;      // 学期开始日期
-  int totalWeeks;          // 总周数 (1-20)
-  bool showWeekend;        // 是否显示周末
-  int maxPeriods;          // 最大节数 (1-16)
-  List<ClassTime> classTimes; // 每节课的时间设置
-  List<DateTime> holidays; // 节假日
-  int reminderMinutes;     // 上课前提醒分钟数
-}
-```
-
-### JSON导入导出格式
-```json
-{
-  "name": "课表名称",
-  "isDefault": false,
-  "courses": [
-    {
-      "name": "课程名称",
-      "location": "上课地点",
-      "teacher": "教师姓名",
-      "schedules": [
-        {
-          "weekday": 1,
-          "periods": [1, 2],
-          "weekPattern": [1, 2, 3, 4, 5, 6],
-        }
-      ]
-    }
-  ]
-}
-```
-
-## 🛠️ 技术架构
-
-### 核心组件
-- **状态管理**: Provider (ChangeNotifier)
-- **数据持久化**: Isar Plus (NoSQL数据库)
-- **UI框架**: yicore
-- **文件操作**: file_selector (跨平台文件选择)
-- **AI服务**: HTTP API (支持OpenAI/Claude/Gemini/DeepSeek等)
-
-### 主要依赖
-```yaml
-provider: ^6.1.5          # 状态管理
-isar_plus: ^1.1.1         # 本地数据库
-file_selector: ^1.0.3     # 文件选择器
-http: ^1.1.0              # HTTP请求
-image_picker: ^1.0.4      # 图片选择
-shared_preferences: ^2.2.2 # 简单配置存储
-```
-
-### 项目结构
-```
-lib/
-├── components/           # 可复用UI组件
-│   ├── week_view_components/  # 周视图专用组件
-│   ├── course_card.dart       # 课程卡片
-│   ├── bottom_nav_bar.dart    # 底部导航
-│   └── ...
-├── data/                # 数据模型
-│   ├── course.dart           # 课程模型
-│   ├── timetable.dart       # 课表模型
-│   └── ...
-├── services/            # 业务逻辑服务
-│   ├── ai/                  # AI服务
-│   │   ├── ai_service.dart      # AI调用逻辑
-│   │   └── ai_config_service.dart # AI配置管理
-│   ├── file_service.dart    # 文件导入导出
-│   ├── timetable_service.dart # 课表CRUD
-│   └── ...
-├── states/             # 状态管理
-│   ├── timetable_state.dart  # 课表状态
-│   ├── view_state.dart       # 视图状态
-│   └── week_state.dart       # 周次状态
-├── utils/              # 工具类
-│   ├── color_utils.dart      # 颜色工具
-│   └── ...
-└── views/             # 页面视图
-    ├── week_view.dart        # 周视图
-    ├── day_view.dart         # 日视图
-    ├── list_view.dart        # 列表视图
-    ├── ai_import_page.dart   # AI导入页面
-    └── ...
-```
-
-##  贡献指南
-
-欢迎提交Pull Request或Issue。提交前请确保：
-1. 代码通过静态分析
-2. 添加适当的单元测试
-3. 更新相关文档
-
-##  常见问题
-
-**Q: 如何导入课程表?**
-A: 支持三种导入方式：
-1. **AI图片识别**：在AI导入页面选择图片，AI会自动识别课程信息
-2. **AI表格解析**：粘贴CSV/Excel格式的课程表文本
-3. **AI文字识别**：输入自然语言描述的课程安排
-4. **文件导入**：在设置页面或悬浮按钮选择"导入"，选择JSON格式的课表文件
-
-**Q: 如何导出课程表?**
-A: 在设置页面或悬浮按钮选择"导出"，选择保存位置即可导出为JSON文件
-
-**Q: AI导入功能如何使用?**
-A: 
-1. 先在设置中启用"高级功能"
-2. 进入"AI导入配置"，配置API Key和Endpoint
-3. 支持OpenAI、Claude、Gemini、DeepSeek等AI服务
-4. 配置完成后在AI导入页面使用
-
-**Q: 课程时间冲突如何处理?**
-- 保存课程时不会阻止冲突的创建，允许用户手动添加时间冲突的课程
-- 在周视图和日视图中，如果同一时段有多门课程，只会显示第一个匹配的课程
-- 用户可以通过编辑课程来调整时间安排，避免冲突
-
-**Q: 如何自定义课程颜色?**
-A: 编辑课程时可以手动选择颜色，未设置颜色的课程会从预设颜色中自动分配
-
-**Q: 数据存储在哪里?**
-A: 使用Isar数据库本地存储，所有数据保存在设备本地，不会上传到服务器
-
-##  开源协议
-
-本项目采用 **Apache License 2.0** 开源协议。
-
-### 许可证信息
-- **许可证名称**: Apache License 2.0
-- **许可证链接**: [LICENSE](LICENSE)
-- **版权年份**: 2025
-- **版权所有者**: wykwey
-
-### 第三方依赖协议
-本应用使用的第三方库及其协议：
-- Flutter - Google (BSD-3-Clause)
-- Provider - Remi Rousselet (MIT)
-- Isar Plus - Isar Team (Apache-2.0)
-- file_selector - Flutter Team (BSD-3-Clause)
-- intl - Dart Team (BSD-3-Clause)
-- http - Dart Team (BSD-3-Clause)
-- image_picker - Flutter Team (BSD-3-Clause)
-- shared_preferences - Flutter Team (BSD-3-Clause)
-
-
-
-
+原项目 Apache-2.0，保留 Copyright 2025 wykwey。设计与图标取自 `ddyec/YIClass-iOS` 3.3.0。Noto Sans SC 字体遵循 SIL Open Font License（`assets/fonts/OFL.txt`）。
