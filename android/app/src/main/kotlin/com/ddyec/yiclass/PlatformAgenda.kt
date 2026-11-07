@@ -70,6 +70,7 @@ object PlatformAgenda {
         val views = RemoteViews(context.packageName,R.layout.agenda_widget)
         val time = SimpleDateFormat("HH:mm",Locale.getDefault())
         val date = SimpleDateFormat("MM月dd日",Locale.CHINA)
+        views.setTextColor(R.id.heading,data.optLong("accent",0xff637eea).toInt())
         views.setTextViewText(R.id.heading,if(todo) "待办" else data.optString("tableName","YIClass"))
         val rows = if(todo) {
             val list = data.optJSONArray("todos") ?: JSONArray()

@@ -232,6 +232,7 @@ void main() {
     await tester.tap(find.byTooltip('添加课程'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, '新增课程');
+    await capture(tester, 'course-editor');
     await tester.tap(find.text('保存'));
     await tester.pump();
     for (
@@ -266,6 +267,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('待完成'), findsOneWidget);
     await capture(tester, 'todos-light');
+    await tester.tap(find.text('完成动物生理学实验报告'));
+    await tester.pumpAndSettle();
+    await capture(tester, 'todo-editor');
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('AI 助手'));
     await tester.pumpAndSettle();
     expect(find.text('我们应该安排什么？'), findsOneWidget);

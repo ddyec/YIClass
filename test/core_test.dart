@@ -38,6 +38,15 @@ J todo(String id, {String? deadline}) => {
   'completedAt': null,
 };
 void main() {
+  test('malformed appearance or AI course fields cannot enter stored data', () {
+    final d = fixture();
+    d['timetables'][0]['courses'][0]['color'] = 'blue';
+    expect(() => validate(d), throwsFormatException);
+    final bad = fresh();
+    bad['theme'] = 'unknown';
+    expect(() => validate(bad), throwsFormatException);
+  });
+
   test('fresh data and stable academic week boundaries', () {
     final d = fixture();
     validate(d);

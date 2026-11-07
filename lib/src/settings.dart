@@ -656,7 +656,7 @@ class _AISettingsState extends State<AISettings> {
               OutlinedButton(
                 onPressed: () {
                   endpoint.text = 'https://api.deepseek.com/chat/completions';
-                  model.text = 'deepseek-chat';
+                  model.text = 'deepseek-flash';
                 },
                 child: const Text('填入 DeepSeek 配置'),
               ),

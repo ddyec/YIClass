@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'src/store.dart';
 import 'src/app.dart';
@@ -6,6 +8,14 @@ import 'src/design.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks([
+      'Noto Sans SC',
+    ], await rootBundle.loadString('assets/fonts/OFL.txt'));
+    yield LicenseEntryWithLineBreaks([
+      'YIClass',
+    ], await rootBundle.loadString('LICENSE'));
+  });
   try {
     final store = await Store.open();
     runApp(YIClassApp(store: store));

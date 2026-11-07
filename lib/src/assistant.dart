@@ -6,7 +6,7 @@ import 'model.dart';
 class AIConfig {
   static const vault = FlutterSecureStorage();
   String endpoint = 'https://api.deepseek.com/chat/completions',
-      model = 'deepseek-chat',
+      model = 'deepseek-flash',
       key = '';
   Future<void> load() async {
     endpoint = await vault.read(key: 'endpoint') ?? endpoint;
@@ -64,6 +64,8 @@ class AIClient {
           'messages': messages,
           'temperature': 0.2,
           'max_tokens': 12000,
+          if (Uri.parse(config.endpoint).host == 'api.deepseek.com')
+            'thinking': {'type': 'disabled'},
           if (json) 'response_format': {'type': 'json_object'},
         });
       final response = await http.Response.fromStream(
@@ -75,7 +77,12 @@ class AIClient {
       );
       final choice = (jsonDecode(response.body)['choices'] as List).first;
       require(choice['finish_reason'] != 'length', '输出被截断，未应用任何更改，请缩小请求范围');
-      return choice['message']['content'] as String;
+      final content = choice['message']['content'];
+      require(
+        content is String && content.trim().isNotEmpty,
+        '接口未返回可用内容，请重试或检查模型配置',
+      );
+      return content as String;
     } finally {
       client.close();
       if (identical(_active, client)) _active = null;

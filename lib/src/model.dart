@@ -81,6 +81,35 @@ int weekFor(J table, DateTime date) {
 
 void validate(J d) {
   require(d['schemaVersion'] == 1, '数据版本不受支持');
+  require(
+    d['revision'] is int &&
+        d['revision'] >= 0 &&
+        d['accent'] is int &&
+        d['accent'] >= 0 &&
+        d['accent'] <= 0xffffffff &&
+        ['system', 'light', 'dark'].contains(d['theme']) &&
+        d['gradient'] is bool &&
+        d['reminders'] is bool &&
+        [0, 5, 10, 15, 30, 60].contains(d['reminderMinutes']),
+    '外观或提醒设置无效',
+  );
+  for (final chat in objects(d['chats'])) {
+    require(
+      chat['id'] is String &&
+          chat['title'] is String &&
+          chat['updatedAt'] is String &&
+          DateTime.tryParse(chat['updatedAt']) != null,
+      '对话历史格式无效',
+    );
+    for (final message in objects(chat['messages'])) {
+      require(
+        ['user', 'assistant'].contains(message['role']) &&
+            message['content'] is String,
+        '对话消息格式无效',
+      );
+    }
+  }
+
   final periods = objects(d['timeProfile']['periods']);
   final counts = numbers(d['timeProfile']['sessionCounts']);
   require(
@@ -134,6 +163,15 @@ void validate(J d) {
       require(
         (c['name'] as String).trim().isNotEmpty && c['name'].length <= 120,
         '课程名称无效',
+      );
+      require(
+        c['id'] is String &&
+            c['color'] is int &&
+            c['color'] >= 0 &&
+            c['color'] <= 0xffffffff &&
+            c['location'] is String &&
+            c['teacher'] is String,
+        '课程标识、颜色、地点或教师格式无效',
       );
       final schedules = objects(c['schedules']);
       final unscheduled = c['unscheduledWeeks'];
@@ -467,13 +505,6 @@ void resizeSessions(J d, List<int> counts) {
 String rangeLabel(dynamic value) {
   final values = numbers(value).toSet().toList()..sort();
   if (values.isEmpty) return '';
-  if (values.length >= 3 &&
-      List.generate(
-        values.length - 1,
-        (i) => values[i + 1] - values[i],
-      ).every((n) => n == 2)) {
-    return '${values.first}–${values.last} ${values.first.isOdd ? '单周' : '双周'}';
-  }
   final parts = <String>[];
   var start = values.first, end = start;
   for (final n in values.skip(1)) {

@@ -394,7 +394,9 @@ class _SchedulePageState extends State<SchedulePage> {
                   },
                   child: Text(
                     mode == 0
-                        ? '第 $week 周 · ${monday.month}/${monday.day}'
+                        ? (MediaQuery.sizeOf(context).width < 360
+                              ? '第 $week 周'
+                              : '第 $week 周 · ${monday.month}/${monday.day}')
                         : '${date.month}月${date.day}日',
                     style: const TextStyle(
                       fontSize: 13,
@@ -424,6 +426,7 @@ class _SchedulePageState extends State<SchedulePage> {
                   showSelectedIcon: false,
                   style: ButtonStyle(
                     side: const WidgetStatePropertyAll(BorderSide.none),
+                    minimumSize: const WidgetStatePropertyAll(Size(36, 34)),
                     backgroundColor: WidgetStateProperty.resolveWith(
                       (states) => states.contains(WidgetState.selected)
                           ? colors.primaryContainer
@@ -585,7 +588,7 @@ class _SchedulePageState extends State<SchedulePage> {
           16.0,
           double.infinity,
         );
-        final location = course['location'] as String;
+        final location = course['location'].toString().replaceAll('_', ' ');
         // A recognisable title gets up to four lines; the room keeps its own full area.
         final needed =
             textHeight(e['title'], courseTitleStyle, usable, maxLines: 4) +
@@ -888,7 +891,7 @@ class _SchedulePageState extends State<SchedulePage> {
                         if ((course['location'] as String).isNotEmpty) ...[
                           const SizedBox(height: 5),
                           Text(
-                            course['location'],
+                            course['location'].toString().replaceAll('_', ' '),
                             key: ValueKey('course-location-${e['id']}'),
                             style: coursePlaceStyle,
                           ),
